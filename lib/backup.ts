@@ -1,3 +1,4 @@
+import {assertWorkspaceActive} from './account-lifecycle';
 import {reserveDocumentBudget} from './storage-budget';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
@@ -26,6 +27,7 @@ export async function restoreBackup(db:Database,owner:string,input:unknown){
  const backup=prepareRestore(input);if(!db.connect)throw Error('Transactional restore is unavailable');
  const client=await db.connect();try{
   await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[owner]);
+  await assertWorkspaceActive(client,owner);
   const jobs=await client.query('SELECT COUNT(*)::int AS count FROM career_jobs WHERE owner_id=$1',[owner]);
   const docs=await client.query('SELECT COUNT(*)::int AS count FROM career_documents WHERE owner_id=$1',[owner]);
   const profiles=await client.query('SELECT payload FROM career_profiles WHERE owner_id=$1',[owner]);

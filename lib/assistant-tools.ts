@@ -1,3 +1,4 @@
+import {assertWorkspaceActive} from './account-lifecycle';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {McpServer} from '@modelcontextprotocol/server';

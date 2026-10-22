@@ -1,0 +1,9 @@
+# Account data and deletion
+
+Active accounts retain saved workspace data until the account holder deletes the account. The account page offers a private export and a one-time deletion confirmation email. Deletion links expire after 30 minutes. A signed-in holder must follow the link to complete deletion; requesting a link does not delete data.
+
+PostgreSQL removes workspace records in the same transaction as the auth user deletion. An internal tombstone retains only the opaque deleted owner ID, preventing delayed requests from recreating private records. It contains no name, email, application or PDF. OAuth authorization checks require a live user and grant. Core auth foreign keys remove sessions and credentials on user deletion; hosted checks verify session removal and workspace cleanup. Deletion is permanent in the product; do not restore a deleted account from a backup without a newly verified request.
+
+Provider history remains available for the currently verified six-hour recovery window. Temporary recovery branches expire within one day. Exported downloads and copies in ChatGPT are controlled by the user. No offsite backup retention claim is made.
+
+Support uses the maintainer's existing public portfolio email. Do not request passwords, tokens, authentication links, or application PDFs through email. Verify account ownership before discussing private records. Support has no guaranteed response time. Keep the public signup gate closed until hosted lifecycle checks and a live confirmation flow pass.

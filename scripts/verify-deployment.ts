@@ -2,7 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {getPool} from '../lib/db';
 // Keep operator-visible setup activity when a hosted build log is unavailable.
-const steps=[['migrations','scripts/migrate.ts'],['database checks','scripts/verify-db.ts'],['OAuth checks','scripts/verify-plugin.ts'],['account email checks','scripts/verify-account-email.ts']];
+const steps=[['migrations','scripts/migrate.ts'],['database checks','scripts/verify-db.ts'],['OAuth checks','scripts/verify-plugin.ts'],['account email checks','scripts/verify-account-email.ts'],['account deletion checks','scripts/verify-lifecycle.ts']];
 for(const [label,file] of steps){
  const result=spawnSync(process.execPath,['--import','tsx',file],{encoding:'utf8',maxBuffer:2000000});
  process.stdout.write(result.stdout||'');process.stderr.write(result.stderr||'');
