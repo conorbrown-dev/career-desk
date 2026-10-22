@@ -1,3 +1,4 @@
+import {reserveDocumentBudget} from './storage-budget';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {canonicalUrl,limits,stages} from './config';
@@ -29,6 +30,7 @@ export async function restoreBackup(db:Database,owner:string,input:unknown){
   const docs=await client.query('SELECT COUNT(*)::int AS count FROM career_documents WHERE owner_id=$1',[owner]);
   const profiles=await client.query('SELECT payload FROM career_profiles WHERE owner_id=$1',[owner]);
   if(jobs.rows[0].count||docs.rows[0].count||profiles.rows[0]?.payload?.onboarded)throw Error('Restore requires an empty workspace. Existing data was not changed.');
+  await reserveDocumentBudget(client,backup.documents.reduce((sum,d)=>sum+d.bytes.length,0));
   const at=new Date().toISOString(),jobIds=new Map(backup.jobs.map(job=>[job.id,randomUUID()]));
   const newDocs=backup.documents.map(d=>({...d,id:randomUUID(),job_id:jobIds.get(d.job_id)!}));
   for(const original of backup.jobs){const id=jobIds.get(original.id)!;const versions:Record<string,number>={};const documents=newDocs.filter(d=>d.job_id===id).map(d=>({id:d.id,name:d.name.replace(/[^a-zA-Z0-9._-]/g,'-'),kind:d.kind,url:'/api/documents/'+d.id,createdAt:at,size:d.bytes.length,version:versions[d.kind]=(versions[d.kind]||0)+1}));const job={...original,id,documents,history:[...(original.history||[]),{at,text:'Restored from an account backup'}],updatedAt:at};await client.query('INSERT INTO career_jobs(owner_id,id,canonical_url,payload,updated_at) VALUES($1,$2,$3,$4,NOW())',[owner,id,job.url||null,JSON.stringify(job)]);}
