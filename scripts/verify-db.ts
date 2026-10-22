@@ -4,6 +4,7 @@ import {getPool} from '../lib/db';
 import {Repository} from '../lib/repository';
 import {restoreBackup} from '../lib/backup';
 import {blankProfile} from '../lib/config';
+import {diagnosticsTableSql,moveSetupRunsSql} from '../lib/deployment-diagnostics';
 
 // Disposable, uniquely scoped records exercise the real PostgreSQL connection.
 const db=getPool();
@@ -30,8 +31,14 @@ try {
   const restoredJob=(await repository.jobs(other))[0];assert.notEqual(restoredJob.id,job.id);assert.equal(restoredJob.company,job.company);assert.equal(restoredJob.stage,'Applied');assert.notEqual(restoredJob.documents[0].id,documentId);assert.deepEqual((await repository.document(other,restoredJob.documents[0].id)).bytes,bytes);
   await assert.rejects(()=>restoreBackup(db,owner,backup),/empty workspace/);
   assert.equal((await repository.jobs(owner)).length,1);
-  console.log('PostgreSQL verification passed: atomic backup restore with remapped IDs, persistence, owner isolation, PDF round trip, export');
+  // Setup failures leave the workspace activity feed for operator diagnostics; ordinary activity stays.
+  await db.query(diagnosticsTableSql);
+  await db.query('INSERT INTO career_runs(owner_id,id,payload) VALUES($1,$2,$3),($1,$4,$5)',[owner,'setup-failure',JSON.stringify({status:'Setup failed',summary:'ChatGPT connection deployment failed during verification fixture. Diagnostic: none'}),'ordinary-run',JSON.stringify({status:'Setup',summary:'Disposable connection check'})]);
+  await db.query(moveSetupRunsSql);
+  assert.deepEqual((await db.query('SELECT id FROM career_runs WHERE owner_id=$1 ORDER BY id',[owner])).rows.map((r:any)=>r.id),['ordinary-run']);
+  assert.equal((await db.query('SELECT stage FROM deployment_diagnostics WHERE id=$1',['run:'+owner+':setup-failure'])).rows[0]?.stage,'legacy activity entry');
+  console.log('PostgreSQL verification passed: atomic backup restore with remapped IDs, persistence, owner isolation, PDF round trip, export, setup diagnostics kept out of activity');
 } finally {
-  for(const id of [owner,other]){await db.query('DELETE FROM career_jobs WHERE owner_id=$1',[id]);await db.query('DELETE FROM career_profiles WHERE owner_id=$1',[id]);await db.query('DELETE FROM career_runs WHERE owner_id=$1',[id]);}
+  for(const id of [owner,other]){await db.query('DELETE FROM career_jobs WHERE owner_id=$1',[id]);await db.query('DELETE FROM career_profiles WHERE owner_id=$1',[id]);await db.query('DELETE FROM career_runs WHERE owner_id=$1',[id]);await db.query('DELETE FROM deployment_diagnostics WHERE id LIKE $1',['run:'+id+':%']).catch(()=>{});}
   await db.end();
 }
