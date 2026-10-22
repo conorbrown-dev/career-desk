@@ -1,3 +1,4 @@
+import {profileRevision,profileUpdateSchema} from './profile-update';
 import {assertWorkspaceActive} from './account-lifecycle';
 import {reserveDocumentBudget} from './storage-budget';
 import {randomUUID} from 'node:crypto';
@@ -12,6 +13,14 @@ export class Repository{
  async jobs(owner:string){const r=await this.db.query('SELECT payload FROM career_jobs WHERE owner_id=$1 ORDER BY updated_at DESC',[owner]);return r.rows.map((r:any)=>r.payload)}
  async profile(owner:string,name='',email=''){const r=await this.db.query('SELECT payload FROM career_profiles WHERE owner_id=$1',[owner]);return r.rows[0]?.payload||blankProfile(name,email)}
  async saveProfile(owner:string,input:any):Promise<any>{if(!this.inTransaction&&this.db.connect)return this.ownedWrite(owner,r=>r.saveProfile(owner,input));if(JSON.stringify(input).length>60000)throw Error('Profile is too large');const schema=z.object({name:z.string().trim().min(1).max(150),email:z.string().email(),criteria:z.object({minimumBase:z.coerce.number().nonnegative().max(10000000),roles:z.string().trim().min(1,'Add at least one target role').max(3000),remote:z.string().trim().min(1,'Add a location or remote preference').max(1000),degree:z.string().max(1000),targetBase:z.string().max(1000)}).passthrough(),experience:z.object({summary:z.string().trim().min(1,'Add an experience summary before preparing applications').max(12000)}).catchall(z.string().max(12000)),rules:z.array(z.string().max(1000)).max(30)}).passthrough();const p=schema.parse(input);for(const field of ['portfolio','linkedin'])if(p[field])canonicalUrl(String(p[field]));p.gettingStarted=(await this.profile(owner)).gettingStarted;p.onboarded=true;await this.db.query('INSERT INTO career_profiles(owner_id,payload) VALUES($1,$2) ON CONFLICT(owner_id) DO UPDATE SET payload=excluded.payload',[owner,JSON.stringify(p)]);return p;}
+ async updateProfile(owner:string,input:unknown,name='',email=''):Promise<any>{
+  if(!this.inTransaction&&this.db.connect)return this.ownedWrite(owner,r=>r.updateProfile(owner,input,name,email));
+  const {expectedRevision,changes}=profileUpdateSchema.parse(input),current=await this.profile(owner,name,email);
+  if(profileRevision(current)!==expectedRevision)throw Error('Profile changed. Read get_profile again and review the changes before retrying.');
+  const next={...current,...changes,criteria:{...current.criteria,...changes.criteria},experience:{...current.experience,...changes.experience}};
+  const saved=await this.saveProfile(owner,next);
+  return {profile:saved,profileRevision:profileRevision(saved)};
+ }
  async saveGettingStarted(owner:string,input:any,name='',email=''):Promise<any>{
   if(!this.inTransaction&&this.db.connect)return this.ownedWrite(owner,r=>r.saveGettingStarted(owner,input,name,email));
   const patch=z.object({dismissed:z.boolean().optional(),assistant:z.enum(['connected','skipped','pending']).optional(),review:z.boolean().optional(),tracking:z.boolean().optional()}).strict().parse(input);

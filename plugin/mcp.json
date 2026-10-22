@@ -5,7 +5,7 @@
   "url":"https://career-desk-phi.vercel.app/mcp",
   "extensions":{"com.openai":{"auth":{
    "type":"oauth","client":{"mode":"cimd"},
-   "baseScopes":["openid","profile","email","offline_access","career:read","career:prepare"]
+   "baseScopes":["openid","profile","email","offline_access","career:read","career:prepare","career:profile:write"]
   }}}
  }}
 }
