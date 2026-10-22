@@ -12,14 +12,15 @@ Production source and operating record for the launch work. Do not advertise ope
 - Technical setup diagnostics stay in private records, while the workspace displays the concise user-facing result.
 - Automated type, unit, build, PostgreSQL and OAuth checks run during deployment.
 
-## Still required before inviting general signup
+## Current release gates — 2026-10-22
 
-- Complete the new-user browser flow on an isolated test account with no personal records: signup, verification, onboarding, job entry, PDF attachment/download, export and ChatGPT consent/disconnect.
-- Check provider backup retention and perform an isolated provider-level recovery drill; logical application restore is tested separately.
-- First scheduled discovery run is verified below. Daily searches remain user-configured in ChatGPT, not an automatic entitlement for every app account.
-- Review account deletion/retention, operational contact, abuse and total storage limits, privacy copy and the public onboarding instructions before opening the signup gate.
+The isolated signup, mailbox verification/reset, onboarding, job persistence, PDF upload/download, export, separate-account OAuth/disconnect, first scheduled discovery, provider recovery and live deletion checks are complete. Historical notes below record the intermediate state and are superseded by this section.
 
-No paid plan or automatic provider upgrade has been authorized. Keep ALLOW_SIGNUP/PILOT_SIGNUP_EMAILS restricted while these items remain open. Do not count a setup check as job discovery or mark an application submitted without confirmation.
+- Deploy and verify the deletion result pages and friendly expired/reused-link guidance.
+- Remove the temporary plus-address invitation while preserving the operator invitation.
+- Review production onboarding/privacy/support pages, then enable PUBLIC_SIGNUP for the bounded 50-account beta. Signup remains restricted until that explicit configuration change is deployed.
+
+No paid plan or automatic provider upgrade has been authorized. Daily searches remain user-configured in ChatGPT. Never count a setup check as discovery or mark a submission without confirmation.
 
 ## Account email setup — 2026-10-22
 
@@ -66,3 +67,7 @@ Activated provider console confirms main has six hours of history on the Free pl
 Account & data page identifies the signed-in account, offers export and connection management, and requests a 30-minute one-time deletion email. Confirmed deletion removes live account/workspace data transactionally via the user-deletion trigger. Opaque deleted-owner markers prevent delayed profile/job/PDF/activity writes from resurrecting records. The hosted lifecycle test caught and fixed a missing activity-write guard; both OAuth and legacy automation now use the guarded repository path. Synthetic deletion verified unrelated workspace preservation and session cascade. Public support uses the maintainer's existing portfolio contact. Privacy copy discloses active retention, six-hour provider history and one-day temporary branches.
 
 PUBLIC_SIGNUP remains off. A database signup capacity guard limits the beta to 50 accounts; the auth hook permits public signup only behind PUBLIC_SIGNUP=true and working email configuration. Deletion requests are auth-rate-limited. The test account requested its real deletion confirmation email, but the operator must confirm deletion to complete the mailbox flow. The additional hosted email expiry/replay/session-revocation checks passed at production commit 9ed8a03e6f75ecb92a437a7d727f927404bff393. No real personal account was deleted.
+
+## Live deletion completion — 2026-10-22
+
+Production main read-only queries verified the disposable account is absent, its deleted-owner marker exists, and its fictional job/PDF counts are zero. The old password correctly no longer signs in. A subsequently opened callback displayed FAILED_TO_GET_USER_INFO; Better Auth requires a live session before consuming the one-time token. The presentation fix preserves Better Auth validation/deletion, sends successful new confirmations to a dedicated result page, and redirects callback errors to cautious expired/used/signed-out guidance without claiming deletion succeeded. Hosted email checks exercise success redirects, cleared cookies and replay guidance.
