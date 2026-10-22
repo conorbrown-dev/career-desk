@@ -13,6 +13,7 @@ export async function sendAccountEmail({to,kind,url}:AccountMessage){
  if(error)throw Error('Account email delivery failed');
 }
 export function accountEmailOptions(send:(message:AccountMessage)=>Promise<void>,base:string){return {
+ user:{deleteUser:{enabled:true,deleteTokenExpiresIn:1800,sendDeleteAccountVerification:async({user,url}:{user:{email:string};url:string})=>send({to:user.email,kind:'deletion',url})}},
  emailAndPassword:{enabled:true,minPasswordLength:12,maxPasswordLength:128,requireEmailVerification:true,revokeSessionsOnPasswordReset:true,resetPasswordTokenExpiresIn:1800,sendResetPassword:async({user,token}:{user:{email:string};token:string})=>send({to:user.email,kind:'reset',url:resetLink(base,token)})},
  emailVerification:{sendOnSignUp:true,sendOnSignIn:false,autoSignInAfterVerification:false,expiresIn:1800,sendVerificationEmail:async({user,url}:{user:{email:string};url:string})=>send({to:user.email,kind:'verification',url})}
 }}
