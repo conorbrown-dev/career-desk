@@ -79,3 +79,11 @@ An authenticated import was run in the operator's workspace against three real G
 ## Setup diagnostics moved out of activity — 2026-10-22
 
 A failed hosted check had written a "Setup failed" entry into the operator's workspace activity, where it appeared beside job-search history and in `list_discovery_activity`. Failures now go to an operator-only `deployment_diagnostics` table with no owner and 30-day retention. The migration moves earlier entries matching that exact generated summary out of activity in one statement; ordinary activity is untouched. The hosted database check asserts both.
+
+## Off-provider backups live — 2026-10-22
+
+Production 52d7d2f published the 30-day backup disclosure before the first run. The private `career-desk-backups` workflow dumped production with a read-only role, verified the dump, encrypted it to the maintainer's age key and uploaded `career-desk-20261022T2235Z` (201,264 bytes, expires 2026-11-21). The same pipeline restored byte-identically in a local PostgreSQL 16 drill; a decrypt-and-restore drill of a real production backup requires the maintainer's private key and has not yet been run.
+
+## Custom domain — 2026-10-22
+
+Production moved to https://career-desk.orangecastle.net (Cloudflare CNAME to Vercel, DNS only). BETTER_AUTH_URL now names that origin, so sessions, email links, trusted origins, the OAuth issuer and the MCP resource (`/mcp`) use it. career-desk-phi.vercel.app permanently redirects there. Existing sessions end once; ChatGPT connections bound to the old resource must be re-added with the new `/mcp` endpoint and the old grant disconnected.

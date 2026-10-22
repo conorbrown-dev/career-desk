@@ -4,7 +4,7 @@ Career Desk runs no inference API calls. The user invokes its authenticated MCP 
 
 ## Connect
 
-Sign in at `/connect`, then in ChatGPT Plugins choose the plus button → Add custom MCP server. Name it Career Desk, use `https://career-desk-phi.vercel.app/mcp` and OAuth. CIMD discovers client metadata; do not supply a personal API key or static automation token. Review the connection warning, sign in to Career Desk, and explicitly consent. Select the plugin in a new conversation. Custom plugin availability depends on the account and workspace. The portable MCP-only package is in `plugin/`; it has not been submitted to the public directory.
+Sign in at `/connect`, then in ChatGPT Plugins choose the plus button → Add custom MCP server. Name it Career Desk, use `https://career-desk.orangecastle.net/mcp` and OAuth. CIMD discovers client metadata; do not supply a personal API key or static automation token. Review the connection warning, sign in to Career Desk, and explicitly consent. Select the plugin in a new conversation. Custom plugin availability depends on the account and workspace. The portable MCP-only package is in `plugin/`; it has not been submitted to the public directory.
 
 First test: read the profile and pipeline; verify the account; save a clearly labelled setup check via record_discovery_run; read it back. A setup check is not a completed job search. Then perform a manual researched search and confirm source links and saved PDFs. Only after a successful connected run should the existing daily task be switched to these tools. Verify the first scheduled run separately; never claim scheduling is proven merely because OAuth connected.
 
