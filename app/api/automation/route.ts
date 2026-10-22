@@ -17,6 +17,8 @@ async function owner(r:Request){
 }
 export async function GET(r:Request){try{
   const u=await owner(r),repo=repository();
+  const documentId=new URL(r.url).searchParams.get('document');
+  if(documentId){const doc=await repo.document(u.id,documentId);if(!doc)throw new HttpError(404,'Document not found');return new Response(new Uint8Array(doc.bytes),{headers:{'Content-Type':'application/pdf','Cache-Control':'private, no-store','Content-Disposition':'attachment; filename="'+doc.name+'"'}});}
   if(new URL(r.url).searchParams.has('status'))return json({connected:true,profileReady:Boolean((await repo.profile(u.id,u.name,u.email)).onboarded)});
   const [jobs,profile,runs,usage]=await Promise.all([repo.jobs(u.id),repo.profile(u.id,u.name,u.email),repo.runs(u.id),repo.usage(u.id)]);
   return json({jobs,profile,runs,usage});
