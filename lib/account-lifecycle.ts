@@ -20,7 +20,7 @@ BEGIN
  DELETE FROM career_jobs WHERE owner_id=OLD.id;
  DELETE FROM career_profiles WHERE owner_id=OLD.id;
  DELETE FROM career_runs WHERE owner_id=OLD.id;
- DELETE FROM career_plugin_usage WHERE owner_id=OLD.id;
+ DELETE FROM career_plugin_usage WHERE owner_id=OLD.id OR owner_id='import:'||OLD.id;
  RETURN OLD;
 END;
 $$;
