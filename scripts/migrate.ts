@@ -1,0 +1,9 @@
+import {getMigrations} from 'better-auth/db/migration';
+import {getAuth} from '../lib/auth';
+import {getPool} from '../lib/db';
+const auth=getAuth();const migration=await getMigrations(auth.options);await migration.runMigrations();
+await getPool().query(`CREATE TABLE IF NOT EXISTS career_profiles(owner_id TEXT PRIMARY KEY,payload JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS career_jobs(owner_id TEXT NOT NULL,id TEXT NOT NULL,canonical_url TEXT,payload JSONB NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(owner_id,id),UNIQUE(owner_id,canonical_url));
+CREATE TABLE IF NOT EXISTS career_documents(owner_id TEXT NOT NULL,id TEXT NOT NULL,job_id TEXT NOT NULL,name TEXT NOT NULL,kind TEXT NOT NULL,size_bytes INTEGER NOT NULL,bytes BYTEA NOT NULL,PRIMARY KEY(owner_id,id),FOREIGN KEY(owner_id,job_id) REFERENCES career_jobs(owner_id,id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS career_runs(owner_id TEXT NOT NULL,id TEXT NOT NULL,payload JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(owner_id,id));`);
+await getPool().end();console.log('Auth and application migrations complete');
