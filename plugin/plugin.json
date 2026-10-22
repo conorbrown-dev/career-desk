@@ -1,0 +1,10 @@
+{
+ "$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+ "name":"career-desk",
+ "version":"0.2.0",
+ "description":"Research matching jobs and save truthful application preparation to your private Career Desk workspace.",
+ "author":{"name":"Conor Brown"},
+ "homepage":"https://career-desk-phi.vercel.app",
+ "repository":"https://github.com/conorbrown-dev/career-desk",
+ "keywords":["career","jobs","applications"]
+}
