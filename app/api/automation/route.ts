@@ -30,7 +30,7 @@ export async function POST(r:Request){try{
   const {action,data}=JSON.parse(body),repo=repository();
   if(action==='save_job'){
     const existing=data?.id?(await repo.jobs(u.id)).find((job:any)=>job.id===data.id):null;
-    checkAutomationJob(data,existing);return json(await repo.save(u.id,data));
+    checkAutomationJob(data,existing);return json(await repo.save(u.id,data,true));
   }
   if(action==='save_pdf'){
     const input=z.object({jobId:z.string(),name:z.string().max(180),kind:z.enum(['Resume','Cover letter']),base64:z.string().max(Math.ceil(limits.fileBytes/3)*4)}).parse(data);
@@ -38,7 +38,7 @@ export async function POST(r:Request){try{
     if(!existing)throw new HttpError(404,'Application not found');
     checkAutomationJob({...existing,stage:'Preparing'},existing);
     if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(input.base64))throw Error('Invalid PDF encoding');
-    return json(await repo.saveDocument(u.id,input.jobId,input.name,input.kind,Buffer.from(input.base64,'base64')));
+    return json(await repo.saveDocument(u.id,input.jobId,input.name,input.kind,Buffer.from(input.base64,'base64'),true));
   }
   if(action==='record_run'){
     const value=z.object({summary:z.string().max(5000),sources:z.array(z.string().url()).max(50).default([]),added:z.number().int().min(0).max(250).default(0),status:z.string().max(80)}).parse(data);
