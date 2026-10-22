@@ -9,3 +9,17 @@ test('duplicate tracking URLs are rejected within one account, allowed across ac
 test('confirmed submission and truthful data boundaries are enforced',async()=>{const {db,repo}=await fixture();await assert.rejects(()=>repo.save('alice',{company:'Example',title:'Engineer',stage:'Applied'}),/submission date/);await assert.rejects(()=>repo.save('alice',{company:'Example',title:'Engineer',stage:'Discovered',url:'javascript:alert(1)'}),/http/);const profile=await repo.profile('new-user','New Developer','new@example.test');assert.equal(profile.criteria.minimumBase,0);assert.equal(JSON.stringify(profile).includes('Conor'),false);assert.throws(()=>canonicalUrl('file:///private'),/http/);await db.end()});
 
 test('onboarding requires target roles, location preferences and an evidence summary',async()=>{const {db,repo}=await fixture();try{const p=await repo.profile('new-user','New Developer','new@example.test');await assert.rejects(()=>repo.saveProfile('new-user',p));p.criteria.roles='Software Engineer';p.criteria.remote='Remote';await assert.rejects(()=>repo.saveProfile('new-user',p));p.experience.summary='Built and maintained software systems.';const saved=await repo.saveProfile('new-user',p);assert.equal(saved.onboarded,true)}finally{await db.end()}});
+
+test('guide progress saves before profile setup, stays owner scoped and survives profile edits',async()=>{
+ const {db,repo}=await fixture();try{
+  await repo.saveGettingStarted('alice',{dismissed:true,assistant:'skipped'},'Alice','alice@example.test');
+  const p=await repo.profile('alice');assert.equal(p.onboarded,false);assert.equal(p.gettingStarted.dismissed,true);
+  assert.equal((await repo.profile('bob')).gettingStarted,undefined);
+  await repo.saveGettingStarted('alice',{review:true});
+  p.criteria.roles='Engineer';p.criteria.remote='Remote';p.experience.summary='Built software.';
+  p.gettingStarted={dismissed:false};await repo.saveProfile('alice',p);
+  const saved=await repo.profile('alice');assert.equal(saved.gettingStarted.review,true);assert.equal(saved.gettingStarted.dismissed,true);assert.equal(saved.gettingStarted.assistant,'skipped');
+  await repo.saveGettingStarted('alice',{dismissed:false});assert.equal((await repo.profile('alice')).gettingStarted.dismissed,false);
+  await assert.rejects(()=>repo.saveGettingStarted('alice',{onboarded:true}));
+ }finally{await db.end()}
+});
