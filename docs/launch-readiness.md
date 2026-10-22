@@ -95,3 +95,7 @@ Claude users can add the existing `/mcp` endpoint as a custom connector (see cla
 ## Claude connector live check — 2026-10-22
 
 Claude read the operator profile and all five applications through the connector. The connection was granted read and refresh only; a test activity save received the intended 403 step-up challenge, but that Claude session surfaced it as an error rather than a consent prompt, so nothing was saved. Every 401 now requests the full permission set so the first consent screen covers saving; the step-up remains for narrower legacy grants.
+
+## Alerting and terms — 2026-10-22
+
+Added dependency-free Sentry error reporting (inactive until SENTRY_DSN is set), generic 500s for infrastructure faults, a 30-minute GitHub Actions uptime check, and a Terms of use page linked from sign-up, the landing footer and the privacy page. The privacy page now names Sentry and the GitHub-hosted encrypted backups. Terms were drafted for operator review and are not legal advice. Resend's free plan allows 100 emails a day and 3,000 a month, adequate for the 50-account beta; raise the cap only after reviewing email volume.

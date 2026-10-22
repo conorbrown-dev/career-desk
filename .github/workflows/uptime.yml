@@ -1,0 +1,38 @@
+name: Uptime
+
+# Free availability check. A failed run sends GitHub's workflow-failure email.
+# These checks avoid database queries so they do not keep the Neon compute awake.
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://career-desk.orangecastle.net
+    steps:
+      - name: Check public pages and the assistant endpoint
+        run: |
+          set -u
+          fail=0
+          check() { # name, expected status, curl args...
+            name=$1; want=$2; shift 2
+            for attempt in 1 2 3; do
+              got=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 20 "$@" || echo 000)
+              [ "$got" = "$want" ] && { echo "ok   $name ($got)"; return 0; }
+              sleep 10
+            done
+            echo "::error::$name returned $got, expected $want"; fail=1
+          }
+          check 'Landing page' 200 "$SITE/"
+          grep -q 'Career Desk' /tmp/body || { echo "::error::Landing page content missing"; fail=1; }
+          check 'Privacy page' 200 "$SITE/about"
+          check 'Terms page' 200 "$SITE/terms"
+          check 'Assistant connection metadata' 200 "$SITE/.well-known/oauth-protected-resource/mcp"
+          check 'Assistant endpoint asks for sign-in' 401 -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' "$SITE/mcp"
+          exit $fail
