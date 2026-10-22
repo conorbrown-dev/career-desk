@@ -3,7 +3,37 @@ import {request} from 'node:https';
 import {isIP} from 'node:net';
 export function publicIPv4(ip:string){const p=ip.split('.').map(Number);if(p.length!==4||p.some(n=>!Number.isInteger(n)||n<0||n>255))return false;const [a,b,c]=p;return !(a===0||a===10||a===127||a>=224||(a===100&&b>=64&&b<=127)||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&(b===168||b===0||(b===88&&c===99)))||(a===198&&(b===18||b===19||(b===51&&c===100)))||(a===203&&b===0&&c===113))}
 export function postingUrl(input:string){const url=new URL(input);if(url.protocol!=='https:'||url.username||url.password||(url.port&&url.port!=='443')||isIP(url.hostname)||url.hostname.includes(':')||!url.hostname.includes('.')||url.hostname.endsWith('.localhost')||url.hostname.endsWith('.local'))throw Error('Use a public HTTPS job posting link without credentials.');url.hash='';return url}
-export async function fetchPosting(input:string){let url=postingUrl(input);const deadline=Date.now()+12000;for(let redirects=0;redirects<=3;redirects++){
+// Greenhouse job pages carry no schema.org data, so known Greenhouse links read the public Job Board API instead.
+// Its response is converted to a JobPosting and parsed by the same path as any other structured posting.
+const greenhouseHosts=new Set(['job-boards.greenhouse.io','boards.greenhouse.io']);
+export function greenhouseApiUrl(input:URL):string|null{
+ if(!greenhouseHosts.has(input.hostname))return null;
+ let board:string|undefined,id:string|undefined;
+ const path=input.pathname.match(/^\/([A-Za-z0-9_-]{1,100})\/jobs\/(\d{1,20})\/?$/);
+ if(path)[,board,id]=path;
+ else if(/^\/embed\/job_app\/?$/.test(input.pathname)){board=input.searchParams.get('for')||undefined;id=input.searchParams.get('token')||undefined}
+ if(!board||!id||!/^[A-Za-z0-9_-]{1,100}$/.test(board)||!/^\d{1,20}$/.test(id))return null;
+ return `https://boards-api.greenhouse.io/v1/boards/${board}/jobs/${id}?pay_transparency=true`;
+}
+export function greenhouseJob(data:any){
+ if(!data||typeof data!=='object'||typeof data.title!=='string'||!data.title.trim())return null;
+ const job:any={'@type':'JobPosting',title:data.title,description:decode(String(data.content||''))};
+ if(typeof data.company_name==='string'&&data.company_name.trim())job.hiringOrganization={name:data.company_name};
+ if(typeof data.location?.name==='string'&&data.location.name.trim())job.jobLocation={address:{addressLocality:data.location.name}};
+ // Populate pay only for a single USD range explicitly labeled as salary or annual; hourly or multiple ranges stay blank for review.
+ const ranges=Array.isArray(data.pay_input_ranges)?data.pay_input_ranges:[];
+ if(ranges.length===1){const r=ranges[0],label=`${r?.title||''} ${plain(r?.blurb||'')}`;
+  if(r?.currency_type==='USD'&&/\b(salary|annual|annually|yearly|per year)\b/i.test(label)&&!/\bhour(ly)?\b/i.test(label)&&Number.isFinite(r.min_cents)&&Number.isFinite(r.max_cents)&&r.min_cents>=0&&r.max_cents>=r.min_cents)
+   job.baseSalary={currency:'USD',value:{unitText:'YEAR',minValue:Math.round(r.min_cents/100),maxValue:Math.round(r.max_cents/100)}};
+ }
+ return job;
+}
+export async function fetchPosting(input:string){
+ const url=postingUrl(input),api=greenhouseApiUrl(url);
+ if(api){try{const result=await fetchPublic(api,6000);const job=greenhouseJob(JSON.parse(result.html));if(job)return {html:JSON.stringify(job),url:url.href}}catch{/* Closed or unavailable: fall back to the posting page, which reports redirects and missing details. */}}
+ return fetchPublic(url.href);
+}
+async function fetchPublic(input:string,timeoutMs=12000){let url=postingUrl(input);const deadline=Date.now()+timeoutMs;for(let redirects=0;redirects<=3;redirects++){
  const addresses=await Promise.race([resolve4(url.hostname),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Posting lookup timed out. Try pasting the posting text.')),3000);timer.unref()})]);
  if(!addresses.length||addresses.some(ip=>!publicIPv4(ip)))throw Error('This link does not resolve to a public posting site.');
  const result=await new Promise<{html:string;location?:string}>((resolve,reject)=>{
