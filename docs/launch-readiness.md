@@ -56,3 +56,7 @@ The test plugin read only Alex Developer’s fictional profile, opportunity and 
 Uploads and restores now share a transaction-serialized global PDF budget of 100 MiB by default, configurable through TOTAL_DOCUMENT_BYTES. This controls PDF bytes, not total PostgreSQL or provider spend. Local tests and typecheck pass; deployment verification is pending. Connection instructions now explain read versus preparation consent.
 
 Neon console SSO reaches an email activation wall. Operator must activate their existing Neon account before provider retention and the isolated provider recovery drill can proceed. Public signup remains restricted. Account deletion/retention, operational contact and broader abuse limits remain unfinished.
+
+## Neon point-in-time recovery drill — 2026-10-22
+
+Activated provider console confirms main has six hours of history on the Free plan. Created recovery-drill-20261022 (br-steep-mud-b8h5ne2c) as a separate historical child of main at approximately 09:00 America/Chicago, without changing production/default branch or app credentials. It expires automatically October 23 at 09:06 CDT. Restored branch queries returned 2 profiles, 6 opportunities and 7 PDFs. The test PDF is 13,264 bytes with MD5 2942bfabb3d05332b66eb128e0842cff. Production comparison passed: all seven PDFs total 124,264 bytes; the aggregate of ordered document IDs and PDF MD5 values is 14c9db9617ff20fb2da3cca88db19db7 on both branches. This is provider point-in-time recovery within six hours, not an offsite backup or recovery guarantee beyond that window.

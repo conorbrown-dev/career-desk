@@ -15,3 +15,7 @@ The restore validates the complete file, all document references, posting URLs, 
 Afterward, sign in as the verified destination account and check its criteria, application count, recorded stages and PDF downloads. Compare PDF hashes to the source export. Confirm the original account and an unrelated account remain unchanged. Remove private temporary files according to the agreed support retention window; do not commit backups, include them in logs or attach them to public issues.
 
 Every deployment exercises export → restore into a separate disposable owner → PDF byte comparison → refusal to overwrite the source. This tests logical application recovery; it is not a claim that provider-level disaster recovery or off-site backups are configured. Before public launch, separately verify the database provider's retention and a recovery drill in an isolated database/branch, and record the result.
+
+## Verified provider recovery window (2026-10-22)
+
+Neon Free project mute-voice-81539752 reports six hours of history. A historical child branch recovered the workspace at approximately 09:00 America/Chicago on 2026-10-22. Inspect recovered data on that separate branch before considering a production switch. Do not restore/reset main in place as a verification exercise. The drill branch br-steep-mud-b8h5ne2c expires automatically after one day. This proves a short-window provider recovery path, not offsite disaster recovery, recovery outside the window, or recovery of data not yet committed at the selected time.
