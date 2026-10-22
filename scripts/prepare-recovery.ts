@@ -1,0 +1,14 @@
+import {getAuth} from '../lib/auth';
+import {getPool} from '../lib/db';
+import {recoveryGrant} from '../lib/recovery';
+const email=process.env.CAREER_RECOVERY_EMAIL||'';
+const token=recoveryGrant(email);
+const auth=getAuth(),context=await auth.$context;
+const user=await context.internalAdapter.findUserByEmail(email);
+if(!user)throw Error('Recovery account does not exist');
+const identifier='reset-password:'+token;
+const existing=await context.internalAdapter.findVerificationValue(identifier);
+if(existing)throw Error('This recovery token has already been prepared; do not reuse it');
+await context.internalAdapter.createVerificationValue({identifier,value:user.user.id,expiresAt:new Date(process.env.CAREER_RECOVERY_EXPIRES!)});
+await getPool().end();
+console.log('One-time account recovery prepared; no password was changed');

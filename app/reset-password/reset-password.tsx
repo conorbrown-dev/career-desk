@@ -1,0 +1,9 @@
+'use client';
+import {useState} from 'react';
+export default function ResetPassword(){
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[done,setDone]=useState(false);
+ return <main className="auth-page"><a className="brand" href="/">◎ careerdesk</a><section className="panel auth-card"><span className="eyebrow">ACCOUNT RECOVERY</span><h1>{done?'Password updated.':'Choose a new password.'}</h1>{done?<><p>Your existing sessions have been revoked. Sign in with your new password.</p><a className="primary full" href="/sign-in">Sign in</a></>:<><p>This one-time recovery uses your existing signed-in session. Your profile, applications, and documents will stay in place.</p><form onSubmit={async e=>{
+ e.preventDefault();setError('');const form=e.currentTarget;const f=new FormData(form);if(f.get('password')!==f.get('confirmation')){setError('The passwords do not match.');return}setBusy(true);
+ try{const r=await fetch('/api/account/recovery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newPassword:f.get('password')})});const data=await r.json();if(!r.ok)throw Error(data.error||'Unable to reset password');form.reset();setDone(true)}catch(e){setError(e instanceof Error?e.message:'Unable to reset password')}finally{setBusy(false)}
+ }}><label>New password<input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required/></label><label>Confirm new password<input name="confirmation" type="password" autoComplete="new-password" minLength={12} maxLength={128} required/></label><p className="muted">Use a unique password of at least 12 characters and save it in your password manager.</p>{error&&<p role="alert" className="error">{error}</p>}<button className="primary full" disabled={busy}>{busy?'Updating…':'Save new password'}</button></form></>}</section></main>;
+}
