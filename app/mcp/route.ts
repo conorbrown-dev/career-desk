@@ -1,16 +1,21 @@
 import {requireMcpAuth} from '@better-auth/mcp';
 import {createMcpHandler} from '@modelcontextprotocol/server';
 import {getAuth} from '@/lib/auth';
-import {mcpResource} from '@/lib/plugin-config';
+import {mcpResource,pluginScopes} from '@/lib/plugin-config';
 import {activePluginUser,missingToolScopes,scopeStepUpResponse,supportsScopeStepUp} from '@/lib/plugin-authorization';
 import {AssistantTools,createCareerMcp} from '@/lib/assistant-tools';
 import {getPool} from '@/lib/db';
 export const dynamic='force-dynamic';
-export async function POST(request:Request){
+// Ask for every Career Desk permission on the first sign-in so the consent screen shows the full set at once.
+// Some Claude clients do not surface a later scope step-up, which would leave saving impossible.
+const challenge=`Bearer resource_metadata="${new URL('/.well-known/oauth-protected-resource/mcp',mcpResource).href}", scope="${pluginScopes.join(' ')}"`;
+function withFullScopeChallenge(response:Response){if(response.status!==401)return response;const headers=new Headers(response.headers);headers.set('WWW-Authenticate',challenge);return new Response(response.body,{status:401,statusText:response.statusText,headers})}
+export async function POST(request:Request){return withFullScopeChallenge(await handle(request))}
+async function handle(request:Request){
  if(Number(request.headers.get('content-length')||0)>3000000)return Response.json({error:'Request is too large'},{status:413});
  return requireMcpAuth(getAuth(),async(r,claims)=>{
   const context=await getAuth().$context;
-  let grant;try{grant=await activePluginUser(context.adapter,claims)}catch{return Response.json({error:'Reconnect Career Desk to authorize this account.'},{status:401,headers:{'WWW-Authenticate':`Bearer resource_metadata="${new URL('/.well-known/oauth-protected-resource',mcpResource).href}"`}})}
+  let grant;try{grant=await activePluginUser(context.adapter,claims)}catch{return Response.json({error:'Reconnect Career Desk to authorize this account.'},{status:401})}
   const db=getPool();
   const quota=await db.query('INSERT INTO career_plugin_usage(owner_id,window_start,count) VALUES($1,date_trunc(\'minute\',NOW()),1) ON CONFLICT(owner_id) DO UPDATE SET count=CASE WHEN career_plugin_usage.window_start=date_trunc(\'minute\',NOW()) THEN career_plugin_usage.count+1 ELSE 1 END,window_start=date_trunc(\'minute\',NOW()) RETURNING count',[grant.user.id]);
   if(quota.rows[0].count>60)return Response.json({error:'Connection request limit reached. Try again in a minute.'},{status:429,headers:{'Retry-After':'60'}});

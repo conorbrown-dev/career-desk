@@ -12,7 +12,7 @@ Claude reads the protected resource metadata from the `401` on `/mcp`, then the 
 
 ## Permissions and step-up
 
-The `401` names `scope="career:read"`, so Claude first requests read access (plus `offline_access` for refresh). When a Claude client then calls a write tool without its scope, `/mcp` answers before the tool runs with:
+Every `401` from `/mcp` names the full permission set (`openid profile email offline_access career:read career:prepare career:profile:write`), so the first consent screen lists all of it and the user allows or cancels. This changed on 2026-10-22 after a Claude session showed the step-up `403` as an error instead of a consent prompt, which left saving impossible with a read-only grant. The step-up below remains as a fallback for an older narrower grant: when a Claude client calls a write tool without its scope, `/mcp` answers before the tool runs with:
 
 ```
 HTTP/1.1 403 Forbidden

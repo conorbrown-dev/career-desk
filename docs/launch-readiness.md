@@ -91,3 +91,7 @@ Production moved to https://career-desk.orangecastle.net (Cloudflare CNAME to Ve
 ## Claude connector — 2026-10-22
 
 Claude users can add the existing `/mcp` endpoint as a custom connector (see claude-connector.md). The live server already met Claude's OAuth discovery, CIMD and PKCE requirements. Added a pre-tool `403 insufficient_scope` step-up for Claude clients so write tools prompt for explicit consent instead of failing, a "Requested by <host>" line and accurate profile wording on the consent screen, and assistant-neutral copy with Claude setup steps. The old ChatGPT grant bound to the vercel.app resource was disconnected after the domain move. Unit tests cover the step-up; a live Claude connection is pending.
+
+## Claude connector live check — 2026-10-22
+
+Claude read the operator profile and all five applications through the connector. The connection was granted read and refresh only; a test activity save received the intended 403 step-up challenge, but that Claude session surfaced it as an error rather than a consent prompt, so nothing was saved. Every 401 now requests the full permission set so the first consent screen covers saving; the step-up remains for narrower legacy grants.
