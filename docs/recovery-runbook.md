@@ -19,3 +19,16 @@ Every deployment exercises export â†’ restore into a separate disposable owner â
 ## Verified provider recovery window (2026-10-22)
 
 Neon Free project mute-voice-81539752 reports six hours of history. A historical child branch recovered the workspace at approximately 09:00 America/Chicago on 2026-10-22. Inspect recovered data on that separate branch before considering a production switch. Do not restore/reset main in place as a verification exercise. The drill branch br-steep-mud-b8h5ne2c expires automatically after one day. This proves a short-window provider recovery path, not offsite disaster recovery, recovery outside the window, or recovery of data not yet committed at the selected time.
+
+## Nightly encrypted off-provider backups
+
+A scheduled workflow in the private `career-desk-backups` repository dumps the production database with `pg_dump --format=custom`, checks the dump is readable with `pg_restore --list`, encrypts it to the maintainer's `age` public key and uploads it as a workflow artifact that expires after 30 days. The database credential is a read-only role stored as a repository secret. The private key never enters GitHub, Vercel or this repository; keep it offline with a second copy.
+
+Restore drill or disaster recovery, never into production first:
+
+1. Download the artifact from the backup repository's workflow run and decrypt locally: `age -d -i <private-key-file> -o career-desk.dump career-desk-<timestamp>.dump.age`.
+2. Create a temporary, expiring Neon branch (or empty database) and restore: `pg_restore --no-owner --no-privileges -d "<temporary-branch-url>" career-desk.dump`.
+3. Compare row counts and ordered document ID/PDF MD5 aggregates against the source, as in the provider drill above.
+4. Delete the decrypted dump and let the temporary branch expire. Promote or copy data into production only after deciding exactly what to recover; never resurrect a deleted account without a newly verified request.
+
+Backups contain hashed credentials, sessions and OAuth records as well as workspace data. Treat a decrypted dump as production data.
