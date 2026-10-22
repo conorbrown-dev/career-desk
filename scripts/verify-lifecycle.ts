@@ -20,6 +20,6 @@ try{
  await assert.rejects(()=>tools.recordRun({summary:'Stale activity',sources:[],added:0,status:'Setup'}),/deleted/);
  console.log('Account lifecycle passed: transactional workspace deletion, unrelated owner preservation, stale write denial');
 }finally{
- for(const id of [owner,other]){await db.query('DELETE FROM "user" WHERE id=$1',[id]);await db.query('DELETE FROM career_deleted_owners WHERE owner_id=$1',[id]);}
+ for(const id of [owner,other]){await db.query('DELETE FROM "user" WHERE id=$1',[id]);for(const table of ['career_documents','career_jobs','career_profiles','career_runs','career_plugin_usage','career_deleted_owners'])await db.query('DELETE FROM '+table+' WHERE owner_id=$1',[id]);}
  await db.end();
 }

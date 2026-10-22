@@ -43,7 +43,7 @@ export async function POST(r:Request){try{
   if(action==='record_run'){
     const value=z.object({summary:z.string().max(5000),sources:z.array(z.string().url()).max(50).default([]),added:z.number().int().min(0).max(250).default(0),status:z.string().max(80)}).parse(data);
     const run={...value,id:randomUUID(),at:new Date().toISOString()};
-    await getPool().query('INSERT INTO career_runs(owner_id,id,payload) VALUES($1,$2,$3)',[u.id,run.id,JSON.stringify(run)]);return json(run);
+    return json(await repo.recordRun(u.id,run));
   }
   throw new HttpError(400,'Unknown automation action');
 }catch(e){return failure(e)}}
