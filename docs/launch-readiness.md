@@ -22,3 +22,7 @@ Production source and operating record for the launch work. Do not advertise ope
 - Review account deletion/retention, operational contact, abuse and total storage limits, privacy copy and the public onboarding instructions before opening the signup gate.
 
 No paid plan or automatic provider upgrade has been authorized. Keep ALLOW_SIGNUP/PILOT_SIGNUP_EMAILS restricted while these items remain open. Do not count a setup check as job discovery or mark an application submitted without confirmation.
+
+## Account email setup — 2026-10-22
+
+Resend Free is connected to Career Desk Production and Preview. orangecastle.net DKIM and send-subdomain MX/SPF are verified; existing Cloudflare routing records were preserved. EMAIL_DELIVERY_ENABLED explicitly gates delivery and verification enforcement. Better Auth owns verification and reset tokens; reset email uses a URL fragment, removed after reading. Reset tokens last 30 minutes and revoke sessions on use. Disposable database checks cover verification enforcement, reset token expiry/replay rejection, generic unknown-email response, changed credentials, and session revocation. Real mailbox delivery and browser completion still require confirmation before public signup.

@@ -1,3 +1,4 @@
 import SignIn from './sign-in';
+import {emailReady} from '@/lib/account-email';
 import {configured} from '@/lib/config';
-export default function Page(){return <SignIn ready={configured()} allowSignup={process.env.ALLOW_SIGNUP==='true'}/>}
+export default function Page(){return <SignIn emailEnabled={emailReady()} ready={configured()} allowSignup={process.env.ALLOW_SIGNUP==='true'}/>}
