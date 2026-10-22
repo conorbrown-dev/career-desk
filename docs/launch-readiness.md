@@ -87,3 +87,7 @@ Production 52d7d2f published the 30-day backup disclosure before the first run. 
 ## Custom domain — 2026-10-22
 
 Production moved to https://career-desk.orangecastle.net (Cloudflare CNAME to Vercel, DNS only). BETTER_AUTH_URL now names that origin, so sessions, email links, trusted origins, the OAuth issuer and the MCP resource (`/mcp`) use it. career-desk-phi.vercel.app permanently redirects there. Existing sessions end once; ChatGPT connections bound to the old resource must be re-added with the new `/mcp` endpoint and the old grant disconnected.
+
+## Claude connector — 2026-10-22
+
+Claude users can add the existing `/mcp` endpoint as a custom connector (see claude-connector.md). The live server already met Claude's OAuth discovery, CIMD and PKCE requirements. Added a pre-tool `403 insufficient_scope` step-up for Claude clients so write tools prompt for explicit consent instead of failing, a "Requested by <host>" line and accurate profile wording on the consent screen, and assistant-neutral copy with Claude setup steps. The old ChatGPT grant bound to the vercel.app resource was disconnected after the domain move. Unit tests cover the step-up; a live Claude connection is pending.

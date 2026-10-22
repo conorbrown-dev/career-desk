@@ -2,7 +2,7 @@ import {requireMcpAuth} from '@better-auth/mcp';
 import {createMcpHandler} from '@modelcontextprotocol/server';
 import {getAuth} from '@/lib/auth';
 import {mcpResource} from '@/lib/plugin-config';
-import {activePluginUser} from '@/lib/plugin-authorization';
+import {activePluginUser,missingToolScopes,scopeStepUpResponse,supportsScopeStepUp} from '@/lib/plugin-authorization';
 import {AssistantTools,createCareerMcp} from '@/lib/assistant-tools';
 import {getPool} from '@/lib/db';
 export const dynamic='force-dynamic';
@@ -18,6 +18,7 @@ export async function POST(request:Request){
   const reader=r.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
   if(reader)try{while(true){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>3000000){await reader.cancel();return Response.json({error:'Request is too large'},{status:413})}chunks.push(part.value)}}finally{reader.releaseLock()}
   const bytes=Buffer.concat(chunks);
+  if(supportsScopeStepUp(claims.client_id)){let body:unknown;try{body=JSON.parse(bytes.toString('utf8'))}catch{body=null}const missing=missingToolScopes(body,grant.scopes);if(missing.length)return scopeStepUpResponse(grant.scopes,missing)}
   return handler.fetch(new Request(r.url,{method:r.method,headers:r.headers,body:bytes}));
  },{resource:mcpResource,requiredScopes:['career:read']})(request);
 }
