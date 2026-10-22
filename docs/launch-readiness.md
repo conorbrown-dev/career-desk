@@ -1,6 +1,6 @@
 # Public beta readiness
 
-Production source and operating record for the launch work. Do not advertise open registration until the remaining gates are verified. The public fictional demo remains available; real account signup remains invite-only.
+Production source and operating record. Public beta registration opened October 22, 2026 with verified email, a 50-account cap and bounded document storage. The fictional demo remains available without an account.
 
 ## Verified
 
@@ -12,13 +12,11 @@ Production source and operating record for the launch work. Do not advertise ope
 - Technical setup diagnostics stay in private records, while the workspace displays the concise user-facing result.
 - Automated type, unit, build, PostgreSQL and OAuth checks run during deployment.
 
-## Current release gates — 2026-10-22
+## Current release status — 2026-10-22
 
-The isolated signup, mailbox verification/reset, onboarding, job persistence, PDF upload/download, export, separate-account OAuth/disconnect, first scheduled discovery, provider recovery and live deletion checks are complete. Historical notes below record the intermediate state and are superseded by this section.
+Public beta is open. The isolated signup, mailbox verification/reset, onboarding, job persistence, PDF upload/download, export, separate-account OAuth/disconnect, first scheduled discovery, provider recovery and live deletion checks are complete. Historical notes below record intermediate states and are superseded by this section.
 
-- Deploy and verify the deletion result pages and friendly expired/reused-link guidance.
-- Remove the temporary plus-address invitation while preserving the operator invitation.
-- Review production onboarding/privacy/support pages, then enable PUBLIC_SIGNUP for the bounded 50-account beta. Signup remains restricted until that explicit configuration change is deployed.
+Deletion success and expired/reused-link guidance are deployed and verified. Onboarding/privacy/support pages were reviewed. The user approved public registration and completed Vercel email verification. Removed the disposable plus-address from PILOT_SIGNUP_EMAILS while preserving the operator invitation; added PUBLIC_SIGNUP=true in Production only. Production redeployment 8Bz7R3a5zWDHn48ZEpYtMorHSeXx reached Ready and serves career-desk-phi.vercel.app. Live /about confirms open public beta with the 50-account capacity limit. Email verification, rate limits and the global PDF budget remain enabled. No new test signup or application submission was performed during the final opening check.
 
 No paid plan or automatic provider upgrade has been authorized. Daily searches remain user-configured in ChatGPT. Never count a setup check as discovery or mark a submission without confirmation.
 
