@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {betterAuth} from 'better-auth';
-import {jwt} from 'better-auth/plugins/jwt';
+import {jwt,type Jwk} from 'better-auth/plugins/jwt';
 import {mcp} from '@better-auth/mcp';
 import {cimd} from '@better-auth/cimd';
 import {getPool} from '../lib/db';
@@ -9,7 +9,8 @@ import {activePluginUser} from '../lib/plugin-authorization';
 import {mcpResource} from '../lib/plugin-config';
 const db=getPool(),suffix=randomUUID(),email='plugin-verification-'+suffix+'@example.invalid';
 const base='https://plugin-verification.invalid',clientId=base+'/client-'+suffix+'.json',callback=base+'/callback';
-const auth=betterAuth({database:db,secret:randomBytes(48).toString('hex'),baseURL:base,rateLimit:{enabled:false},emailAndPassword:{enabled:true,minPasswordLength:12},plugins:[jwt(),mcp({resource:mcpResource,loginPage:'/sign-in',consentPage:'/connect/consent',scopes:['openid','profile','email','offline_access','career:read','career:prepare'],grantTypes:['authorization_code','refresh_token']}),cimd({metadataProfile:'mcp-2026-07-28',fetchClientMetadataResource:async input=>{assert.equal(String(input),clientId);return Response.json({client_id:clientId,client_name:'Disposable verification fixture',redirect_uris:[callback],token_endpoint_auth_method:'none',grant_types:['authorization_code','refresh_token'],response_types:['code']})}})]});
+const fixtureKeys:Jwk[]=[];
+const auth=betterAuth({database:db,secret:randomBytes(48).toString('hex'),baseURL:base,rateLimit:{enabled:false},emailAndPassword:{enabled:true,minPasswordLength:12},plugins:[jwt({adapter:{getJwks:async()=>fixtureKeys,createJwk:async data=>{const key={...data,id:randomUUID()};fixtureKeys.push(key);return key}}}),mcp({resource:mcpResource,loginPage:'/sign-in',consentPage:'/connect/consent',scopes:['openid','profile','email','offline_access','career:read','career:prepare'],grantTypes:['authorization_code','refresh_token']}),cimd({metadataProfile:'mcp-2026-07-28',fetchClientMetadataResource:async input=>{assert.equal(String(input),clientId);return Response.json({client_id:clientId,client_name:'Disposable verification fixture',redirect_uris:[callback],token_endpoint_auth_method:'none',grant_types:['authorization_code','refresh_token'],response_types:['code']})}})]});
 let userId='';
 async function request(path:string,init:RequestInit={}){return auth.handler(new Request(base+path,init))}
 async function body(r:Response){const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data}
