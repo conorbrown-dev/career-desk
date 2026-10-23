@@ -243,3 +243,27 @@ input::placeholder,textarea::placeholder{color:var(--subtle)}
 .stage-bar-submit{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px}
 .stage-bar-submit:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:550px){.stage-bar-submit{width:100%;justify-content:center}}
+.discovery{margin:23px 0}
+.discovery-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.discovery-option{border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:18px;display:flex;flex-direction:column;gap:10px}
+.discovery-title{display:flex;align-items:center;gap:9px;color:var(--accent-ink)}.discovery-title strong{color:var(--ink);font-size:15px}
+.discovery-option .muted{font-size:13px;line-height:1.6;margin:0}
+.discovery-meta{font-size:12px;color:var(--subtle)}
+.discovery-actions,.watchlist-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:auto;padding-top:4px}
+.discovery-actions .primary,.watchlist-actions .primary{margin-left:0}
+.watchlist{margin-top:24px}.watchlist>.muted{font-size:13px;line-height:1.6;margin:12px 0 18px}
+.watchlist-add,.watchlist-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.watchlist-filters{margin:20px 0 18px}
+.watchlist-add label,.watchlist-filters label{flex:1 1 220px;font-size:12px;font-weight:600;color:var(--ink-2);display:flex;flex-direction:column;gap:7px}
+.watchlist-add input,.watchlist-filters input:not([type=checkbox]){width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:10px 11px;font-size:14px;font-weight:400;color:var(--ink);background:var(--surface)}
+.watchlist-filters label.check{flex:1 1 100%;flex-direction:row;align-items:center;gap:9px;font-size:13px;font-weight:500}
+.optional{font-weight:400;color:var(--subtle)}
+.field-error{color:var(--danger);font-size:12px;margin:8px 0 0}
+.board-list{list-style:none;padding:0;margin:18px 0 0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.board-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line)}.board-list li:first-child{border-top:0}
+.board-list li>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.board-list a{font-size:12px;color:var(--accent)}.board-list small{font-size:12px;color:var(--subtle);display:flex;align-items:center;gap:5px}
+.board-list small.board-error{color:var(--danger)}
+.empty-boards{font-size:13px;color:var(--muted);margin:16px 0 0}
+@media(max-width:850px){.discovery-grid{grid-template-columns:1fr}}
+@media(max-width:550px){.watchlist-actions>*,.watchlist-add>button{width:100%}}
