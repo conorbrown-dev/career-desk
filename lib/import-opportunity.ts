@@ -33,16 +33,16 @@ export async function fetchPosting(input:string){
  if(api){try{const result=await fetchPublic(api,6000);const job=greenhouseJob(JSON.parse(result.html));if(job)return {html:JSON.stringify(job),url:url.href}}catch{/* Closed or unavailable: fall back to the posting page, which reports redirects and missing details. */}}
  return fetchPublic(url.href);
 }
-async function fetchPublic(input:string,timeoutMs=12000){let url=postingUrl(input);const deadline=Date.now()+timeoutMs;for(let redirects=0;redirects<=3;redirects++){
+export async function fetchPublic(input:string,timeoutMs=12000,maxBytes=1500000){let url=postingUrl(input);const deadline=Date.now()+timeoutMs;for(let redirects=0;redirects<=3;redirects++){
  const addresses=await Promise.race([resolve4(url.hostname),new Promise<never>((_,reject)=>{const timer=setTimeout(()=>reject(Error('Posting lookup timed out. Try pasting the posting text.')),3000);timer.unref()})]);
  if(!addresses.length||addresses.some(ip=>!publicIPv4(ip)))throw Error('This link does not resolve to a public posting site.');
  const result=await new Promise<{html:string;location?:string}>((resolve,reject)=>{
   const remaining=deadline-Date.now();if(remaining<=0){reject(Error('Import timed out. Try pasting the posting text.'));return}
-  const req=request(url,{method:'GET',family:4,lookup:(_host,_options,callback)=>callback(null,addresses[0],4),headers:{Accept:'text/html, application/ld+json','Accept-Encoding':'identity','User-Agent':'CareerDesk/1.0 (job posting preview)'}},res=>{
+  const req=request(url,{method:'GET',family:4,lookup:(_host,_options,callback)=>callback(null,addresses[0],4),headers:{Accept:'text/html, application/ld+json, application/json','Accept-Encoding':'identity','User-Agent':'CareerDesk/1.0 (job posting preview)'}},res=>{
    if([301,302,303,307,308].includes(res.statusCode||0)){res.destroy();resolve({html:'',location:res.headers.location});return}
    if(res.statusCode!==200){res.destroy();reject(Error('This site could not be imported. Paste the posting text below instead.'));return}
    const type=String(res.headers['content-type']||'');if(!/text\/html|application\/(?:ld\+)?json|application\/xhtml\+xml/i.test(type)){res.destroy();reject(Error('This link is not a readable job posting.'));return}
-   let size=0;const chunks:Buffer[]=[];res.on('data',(chunk:Buffer)=>{size+=chunk.length;if(size>1500000){req.destroy(Error('Posting is too large. Paste the relevant posting text instead.'));return}chunks.push(chunk)});res.on('end',()=>resolve({html:Buffer.concat(chunks).toString('utf8')}));res.on('error',reject);
+   let size=0;const chunks:Buffer[]=[];res.on('data',(chunk:Buffer)=>{size+=chunk.length;if(size>maxBytes){req.destroy(Error('Posting is too large. Paste the relevant posting text instead.'));return}chunks.push(chunk)});res.on('end',()=>resolve({html:Buffer.concat(chunks).toString('utf8')}));res.on('error',reject);
   });const timer=setTimeout(()=>req.destroy(Error('Import timed out. Paste the posting text instead.')),remaining);req.on('close',()=>clearTimeout(timer));req.on('error',reject);req.end();
  });if(result.location){url=postingUrl(new URL(result.location,url).href);continue}if(!result.html)throw Error('The posting redirected without a readable destination.');return {html:result.html,url:url.href};
  }throw Error('Too many redirects. Use the employer’s direct posting link or paste its text.');}

@@ -11,12 +11,13 @@ try{
  await repo.saveDocument(owner,job.id,'fixture.pdf','Resume',Buffer.from('%PDF-1.4\nfixture\n%%EOF'));
  const tools=new AssistantTools(db,{id:owner,name:'Fixture',email:owner+'@example.test'},new Set(['career:read','career:prepare']));
  await tools.recordRun({summary:'Disposable lifecycle check',sources:[],added:0,status:'Setup'});
+ await repo.updateWatchlist(owner,()=>({boards:[],keywords:'',exclude:'',remoteOnly:false,seen:{}}));
  for(let i=0;i<10;i++)await repo.reserveImport(owner);
  await assert.rejects(()=>repo.reserveImport(owner),/wait a minute/);
  const otherJob=await repo.save(other,{company:'Unrelated fixture',title:'Test',stage:'Discovered'});
  await db.query('DELETE FROM "user" WHERE id=$1',[owner]);
  assert.equal(Number((await db.query('SELECT count(*) AS count FROM session WHERE "userId"=$1',[owner])).rows[0].count),0,'Deleting a user must cascade to sessions');
- for(const table of ['career_jobs','career_documents','career_profiles','career_runs','career_plugin_usage'])assert.equal(Number((await db.query('SELECT count(*) AS count FROM '+table+' WHERE owner_id=$1',[owner])).rows[0].count),0);
+ for(const table of ['career_jobs','career_documents','career_profiles','career_runs','career_watchlists','career_plugin_usage'])assert.equal(Number((await db.query('SELECT count(*) AS count FROM '+table+' WHERE owner_id=$1',[owner])).rows[0].count),0);
  assert.equal(Number((await db.query('SELECT count(*) AS count FROM career_plugin_usage WHERE owner_id=$1',['import:'+owner])).rows[0].count),0,'Deletion removes import rate limit state');
  await assert.rejects(()=>repo.reserveImport(owner),/deleted/);
  assert.equal((await repo.jobs(other))[0].id,otherJob.id);
@@ -24,6 +25,6 @@ try{
  await assert.rejects(()=>tools.recordRun({summary:'Stale activity',sources:[],added:0,status:'Setup'}),/deleted/);
  console.log('Account lifecycle passed: transactional workspace deletion, unrelated owner preservation, stale write denial');
 }finally{
- for(const id of [owner,other]){await db.query('DELETE FROM "user" WHERE id=$1',[id]);for(const table of ['career_documents','career_jobs','career_profiles','career_runs','career_plugin_usage','career_deleted_owners'])await db.query('DELETE FROM '+table+' WHERE owner_id=$1',[id]);}
+ for(const id of [owner,other]){await db.query('DELETE FROM "user" WHERE id=$1',[id]);for(const table of ['career_documents','career_jobs','career_profiles','career_runs','career_watchlists','career_plugin_usage','career_deleted_owners'])await db.query('DELETE FROM '+table+' WHERE owner_id=$1',[id]);}
  await db.end();
 }
