@@ -1,4 +1,5 @@
 import {lifecycleMigration} from '../lib/account-lifecycle';
+import {feedCacheSql} from '../lib/feed-cache';
 import {diagnosticsTableSql,moveSetupRunsSql} from '../lib/deployment-diagnostics';
 import {getMigrations} from 'better-auth/db/migration';
 import {getAuth} from '../lib/auth';
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS career_documents(owner_id TEXT NOT NULL,id TEXT NOT N
 CREATE TABLE IF NOT EXISTS career_runs(owner_id TEXT NOT NULL,id TEXT NOT NULL,payload JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(owner_id,id));
 CREATE TABLE IF NOT EXISTS career_watchlists(owner_id TEXT PRIMARY KEY,payload JSONB NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());`);
 await getPool().query("CREATE TABLE IF NOT EXISTS career_plugin_usage(owner_id TEXT PRIMARY KEY,window_start TIMESTAMPTZ NOT NULL,count INTEGER NOT NULL)");
+await getPool().query(feedCacheSql);
 await getPool().query(lifecycleMigration);
 await getPool().query(diagnosticsTableSql);
 await getPool().query(moveSetupRunsSql);

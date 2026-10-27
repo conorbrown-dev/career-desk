@@ -5,11 +5,16 @@ import {z} from 'zod';
 export const providers=['greenhouse','lever','ashby'] as const;
 export type Provider=typeof providers[number];
 export const providerLabels:Record<Provider,string>={greenhouse:'Greenhouse',lever:'Lever',ashby:'Ashby'};
-export const watchlistLimits={boards:25,seenPerBoard:3000,addsPerRun:40,addsPerBoard:15};
+export const watchlistLimits={boards:40,seenPerBoard:3000,addsPerRun:40,addsPerBoard:15,newBoardsPerSave:20};
 
-export type Board={provider:Provider;slug:string;name:string;addedAt:string;lastCheckedAt?:string;lastOpen?:number;lastMatched?:number;lastAdded?:number;lastError?:string};
-export type Watchlist={boards:Board[];keywords:string;exclude:string;remoteOnly:boolean;seen:Record<string,string[]>;lastSyncAt?:string;lastSyncSource?:'manual'|'scheduled';lastSyncSummary?:string};
-export type Posting={id:string;title:string;url:string;location:string;remote:boolean;company:string};
+export const feeds=['remotive'] as const;
+export type Feed=typeof feeds[number];
+export type SourceStatus={lastCheckedAt?:string;lastOpen?:number;lastMatched?:number;lastAdded?:number;lastError?:string};
+export type Board={provider:Provider;slug:string;name:string;addedAt:string}&SourceStatus;
+export type Watchlist={boards:Board[];keywords:string;exclude:string;remoteOnly:boolean;feeds?:Partial<Record<Feed,boolean>>;feedStatus?:Partial<Record<Feed,SourceStatus>>;seen:Record<string,string[]>;lastSyncAt?:string;lastSyncSource?:'manual'|'scheduled';lastSyncSummary?:string};
+export type Posting={id:string;title:string;url:string;location:string;remote:boolean;company:string;salary?:string};
+export const feedKey=(feed:Feed)=>'feed:'+feed;
+export const hasSources=(w:Watchlist|null|undefined)=>!!w&&((w.boards?.length||0)>0||feeds.some(f=>w.feeds?.[f]));
 
 const slugPattern=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 const hosts:Record<string,Provider>={'job-boards.greenhouse.io':'greenhouse','boards.greenhouse.io':'greenhouse','jobs.lever.co':'lever','jobs.ashbyhq.com':'ashby'};
@@ -89,14 +94,32 @@ export function matchPosting(p:Posting,c:Criteria):string|null{
  return [...phrases(c.roles),...phrases(c.keywords)].find(x=>phraseIn(title,x))||null;
 }
 
+/** Remotive lists only remote roles; its candidate_required_location says where applicants may live. */
+export function normalizeRemotive(data:any):Posting[]{
+ const out:Posting[]=[];
+ for(const j of Array.isArray(data?.jobs)?data.jobs:[]){
+  if(!j||typeof j!=='object')continue;
+  const p:Posting={id:String(j.id??''),title:str(j.title).slice(0,300),url:httpsUrl(j.url),location:str(j.candidate_required_location).slice(0,300),remote:true,company:str(j.company_name).slice(0,200),salary:str(j.salary).slice(0,200)||undefined};
+  if(p.id&&p.title&&p.url&&p.company)out.push(p);
+ }
+ return out;
+}
+const usWide=/\b(usa|u\.s\.a?|united states|us|americas|north america|worldwide|anywhere|global)\b/i;
+/** When the search is limited to US remote work, keep only remote postings open to US-based applicants (or that name no region). */
+export function remoteRegionAllowed(location:string,profileRemote:string){
+ if(!/\b(us|u\.s\.|usa|united states)\b/i.test(profileRemote))return true;
+ return !location.trim()||usWide.test(location);
+}
+
 export function emptyWatchlist(profile:any):Watchlist{
- return {boards:[],keywords:'',exclude:'',remoteOnly:/\bremote\b/i.test(String(profile?.criteria?.remote||'')),seen:{}};
+ return {boards:[],keywords:'',exclude:'',remoteOnly:/\bremote\b/i.test(String(profile?.criteria?.remote||'')),feeds:{remotive:false},seen:{}};
 }
 export const watchlistSettingsSchema=z.object({
  boards:z.array(z.object({provider:z.enum(providers),slug:z.string().regex(slugPattern),name:z.string().trim().max(200).optional().default('')})).max(watchlistLimits.boards,`Watch up to ${watchlistLimits.boards} company boards`),
  keywords:z.string().max(2000).optional().default(''),
  exclude:z.string().max(2000).optional().default(''),
- remoteOnly:z.boolean()
+ remoteOnly:z.boolean(),
+ feeds:z.object({remotive:z.boolean()}).strict().optional()
 }).strict();
 /** Applies edited settings while keeping each retained board's history and seen postings. */
 export function applySettings(current:Watchlist,input:unknown,now=new Date()):{next:Watchlist;added:Board[]}{
@@ -110,8 +133,9 @@ export function applySettings(current:Watchlist,input:unknown,now=new Date()):{n
   if(!prev)added.push(board);
   boards.push(board);
  }
- const seen=Object.fromEntries(Object.entries(current.seen||{}).filter(([k])=>keys.has(k)));
- return {next:{...current,boards,keywords:s.keywords,exclude:s.exclude,remoteOnly:s.remoteOnly,seen},added};
+ // Feed history is kept while a feed is off, so turning it back on doesn't re-add roles already reviewed.
+ const seen=Object.fromEntries(Object.entries(current.seen||{}).filter(([k])=>keys.has(k)||k.startsWith('feed:')));
+ return {next:{...current,boards,keywords:s.keywords,exclude:s.exclude,remoteOnly:s.remoteOnly,feeds:{...current.feeds,...s.feeds},seen},added};
 }
 /** The watchlist as shown to the browser, without the seen-posting bookkeeping. */
 export function publicWatchlist(w:Watchlist|null){if(!w)return null;const {seen,...rest}=w;void seen;return rest}

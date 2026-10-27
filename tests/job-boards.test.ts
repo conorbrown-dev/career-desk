@@ -46,7 +46,7 @@ test('settings keep history for retained boards, drop removed ones, and dedupe',
  assert.deepEqual(added.map(b=>b.slug),['ramp']);
  assert.deepEqual(next.seen,{'lever:acme':['1']});
  assert.equal('seen' in publicWatchlist(next)!,false);
- assert.throws(()=>applySettings(current,{boards:Array.from({length:26},(_,i)=>({provider:'lever',slug:'c'+i})),remoteOnly:false}),/up to 25/);
+ assert.throws(()=>applySettings(current,{boards:Array.from({length:41},(_,i)=>({provider:'lever',slug:'c'+i})),remoteOnly:false}),/up to 40/);
  assert.throws(()=>applySettings(current,{boards:[],remoteOnly:false,extra:true}));
 });
 
@@ -55,7 +55,7 @@ function fakeRepo(watch:Watchlist,roles='Software Engineer',limit=250){
  const repo:any={
   watchlist:async()=>structuredClone(state.watch),
   updateWatchlist:async(_o:string,change:(w:any)=>any)=>{const n=change(structuredClone(state.watch));if(n!==null)state.watch=n;return state.watch},
-  profile:async()=>({criteria:{roles}}),
+  profile:async()=>({criteria:{roles,remote:'US remote only'}}),
   jobs:async()=>state.jobs,
   save:async(_o:string,job:any,preparationOnly:boolean)=>{
    assert.equal(preparationOnly,true);assert.equal(job.stage,'Discovered');
@@ -75,31 +75,31 @@ test('a board check adds new matches once, skips non-matches and existing jobs, 
  const {repo,state}=fakeRepo({...emptyWatchlist({}),boards:[board('acme'),board('broken','greenhouse')]});
  state.jobs.push({id:'existing',url:canonicalUrl('https://jobs.lever.co/acme/2')});
  const fetchJson=async(url:string)=>{if(url.includes('greenhouse'))throw Error('404');return leverJobs('acme',['Software Engineer','Account Executive','Senior Software Engineer'])};
- const first=await syncWatchlist(repo,'owner','manual',fetchJson);
+ const first=await syncWatchlist(repo,'owner','manual',{fetchJson});
  assert.equal(first.added,1,'Only the unseen match not already in the pipeline is added');
  assert.equal(state.jobs.at(-1).company,'ACME');assert.match(state.jobs.at(-1).match,/Software Engineer/);
  assert.equal(first.errors.length,1);assert.match(first.errors[0],/Couldn’t read the Greenhouse board “broken”/);
  assert.deepEqual(state.watch.seen['lever:acme'].sort(),['acme0','acme1','acme2']);
  assert.equal(state.watch.boards[1].lastError!==undefined,true);
- assert.equal(state.runs.length,1);assert.equal(state.runs[0].added,1);assert.equal(state.runs[0].status,'Job board check');
+ assert.equal(state.runs.length,1);assert.equal(state.runs[0].added,1);assert.equal(state.runs[0].status,'Job source check');
  assert.deepEqual(state.runs[0].sources,['https://jobs.lever.co/acme','https://job-boards.greenhouse.io/broken']);
- const second=await syncWatchlist(repo,'owner','scheduled',fetchJson);
- assert.equal(second.added,0);assert.equal(state.jobs.length,2);assert.equal(state.runs[1].status,'Scheduled job board check');
+ const second=await syncWatchlist(repo,'owner','scheduled',{fetchJson});
+ assert.equal(second.added,0);assert.equal(state.jobs.length,2);assert.equal(state.runs[1].status,'Scheduled job source check');
 });
 
 test('matches beyond the per-board budget wait for the next check instead of being dropped',async()=>{
  const {repo,state}=fakeRepo({...emptyWatchlist({}),boards:[board('big')]});
  const titles=Array.from({length:20},(_,i)=>'Software Engineer '+i);
  const fetchJson=async()=>leverJobs('big',titles);
- assert.equal((await syncWatchlist(repo,'owner','manual',fetchJson)).added,15);
+ assert.equal((await syncWatchlist(repo,'owner','manual',{fetchJson})).added,15);
  assert.match(state.runs[0].summary,/waiting/);
- assert.equal((await syncWatchlist(repo,'owner','manual',fetchJson)).added,5);
+ assert.equal((await syncWatchlist(repo,'owner','manual',{fetchJson})).added,5);
  assert.equal(state.jobs.length,20);
 });
 
 test('the application limit stops a check without marking remaining matches as seen',async()=>{
  const {repo,state}=fakeRepo({...emptyWatchlist({}),boards:[board('acme')]},'Software Engineer',1);
- const result=await syncWatchlist(repo,'owner','manual',async()=>leverJobs('acme',['Software Engineer','Software Engineer II']));
+ const result=await syncWatchlist(repo,'owner','manual',{fetchJson:async()=>leverJobs('acme',['Software Engineer','Software Engineer II'])});
  assert.equal(result.added,1);assert.match(result.errors.join(' '),/limit reached/);
  assert.deepEqual(state.watch.seen['lever:acme'],['acme0']);
 });
@@ -110,4 +110,101 @@ test('the scheduler endpoint fails closed without its secret',()=>{
  assert.throws(()=>authorizeCron(null,secret),/Invalid/);
  assert.throws(()=>authorizeCron('Bearer wrong',secret),/Invalid/);
  assert.doesNotThrow(()=>authorizeCron('Bearer '+secret,secret));
+});
+
+import {catalog,packs,suggestCompanies,companyBySlug} from '../lib/company-catalog';
+import {normalizeRemotive,remoteRegionAllowed,emptyWatchlist as emptyWatch} from '../lib/job-boards';
+import {remotivePostings} from '../lib/feed-cache';
+import {boardKey} from '../lib/job-boards';
+
+test('the catalog has unique, well-formed boards and packs only reference catalog companies',()=>{
+ const keys=catalog.map(boardKey);
+ assert.equal(new Set(keys).size,keys.length,'no duplicate boards');
+ for(const c of catalog)assert.doesNotThrow(()=>parseBoardInput(`https://${c.provider==='greenhouse'?'job-boards.greenhouse.io':c.provider==='lever'?'jobs.lever.co':'jobs.ashbyhq.com'}/${c.slug}`));
+ for(const p of packs)for(const slug of p.slugs)assert.ok(companyBySlug(slug),`${p.id} references unknown ${slug}`);
+});
+
+test('suggestions favor US-remote listings for remote searches, platform focus for platform roles, and skip watched boards',()=>{
+ const profile={criteria:{roles:'Staff Platform Engineer',remote:'US remote only'}};
+ const picks=suggestCompanies(profile,[],8);
+ assert.equal(picks.length,8);
+ assert.ok(picks.every(c=>c.remoteUS),'remote search: US-remote companies first');
+ assert.ok(picks.every(c=>c.focus.includes('devtools')||c.focus.includes('infrastructure')),'platform roles: devtools/infrastructure first');
+ const without=suggestCompanies(profile,[{provider:'greenhouse',slug:'gitlab'}],40);
+ assert.ok(!without.some(c=>c.slug==='gitlab'));
+ const office=suggestCompanies({criteria:{roles:'Product Designer',remote:'Austin, TX on-site'}},[],3);
+ assert.equal(office.length,3);
+});
+
+test('Remotive jobs normalize to remote postings, and US-only searches skip roles restricted to other regions',()=>{
+ const postings=normalizeRemotive({'job-count':3,jobs:[
+  {id:1,url:'https://remotive.com/remote-jobs/software-dev/staff-backend-engineer-1',title:'Staff Backend Engineer',company_name:'Acme',candidate_required_location:'USA',salary:'$180k - $210k'},
+  {id:2,url:'https://remotive.com/remote-jobs/software-dev/2',title:'Platform Engineer',company_name:'Beta',candidate_required_location:'Europe'},
+  {id:3,url:'javascript:alert(1)',title:'Bad',company_name:'X'}]});
+ assert.deepEqual(postings.map(p=>[p.id,p.remote,p.salary]),[['1',true,'$180k - $210k'],['2',true,undefined]]);
+ assert.equal(remoteRegionAllowed('USA','US remote only'),true);
+ assert.equal(remoteRegionAllowed('Worldwide','US remote only'),true);
+ assert.equal(remoteRegionAllowed('Americas','US remote only'),true);
+ assert.equal(remoteRegionAllowed('','US remote only'),true);
+ assert.equal(remoteRegionAllowed('Europe','US remote only'),false);
+ assert.equal(remoteRegionAllowed('UK, Germany','US remote only'),false);
+ assert.equal(remoteRegionAllowed('Europe','Remote anywhere'),true,'no US restriction in the profile');
+});
+
+test('a Remotive-only watchlist adds US-eligible matches, credits Remotive, and records the check',async()=>{
+ const {repo,state}=fakeRepo({...emptyWatch({}),feeds:{remotive:true}},'Staff Backend Engineer');
+ const remotive=async()=>({postings:normalizeRemotive({jobs:[
+  {id:1,url:'https://remotive.com/remote-jobs/software-dev/1',title:'Staff Backend Engineer',company_name:'Acme',candidate_required_location:'USA',salary:'$200k'},
+  {id:2,url:'https://remotive.com/remote-jobs/software-dev/2',title:'Staff Backend Engineer',company_name:'Beta',candidate_required_location:'Europe only'}]})});
+ const result=await syncWatchlist(repo,'owner','scheduled',{fetchJson:async()=>{throw Error('no boards should be read')},remotive});
+ assert.equal(result.added,1);
+ const job=state.jobs[0];
+ assert.equal(job.company,'Acme');assert.equal(job.source,'Remotive · remote job feed');assert.match(job.notes,/remotive\.com/);assert.match(job.notes,/\$200k/);
+ assert.match(job.url,/^https:\/\/remotive\.com\//);
+ assert.equal(state.watch.feedStatus.remotive.lastAdded,1);
+ assert.deepEqual(state.watch.seen['feed:remotive'].sort(),['1','2']);
+ assert.deepEqual(state.runs[0].sources,['https://remotive.com']);
+ const off=await syncWatchlist(repo,'owner','manual',{remotive:async()=>({postings:[],error:'Remotive is unavailable right now; it will be tried again later.'})});
+ assert.equal(off.added,0);assert.match(off.errors[0],/unavailable/);
+});
+
+/** In-memory stand-in for career_feed_cache that follows the claim query's rules. */
+function fakeFeedDb(){
+ const t={row:null as null|{payload:any[];fetched_at:Date|null;attempted_at:Date;last_error:string|null}};
+ const db={query:async(sql:string,args:any[]=[])=>{
+  if(sql.startsWith('SELECT'))return {rows:t.row?[t.row]:[]};
+  if(sql.startsWith('INSERT')){
+   if(!t.row){t.row={payload:[],fetched_at:null,attempted_at:new Date(),last_error:null};return {rows:[{feed:'remotive'}]}}
+   if(Date.now()-t.row.attempted_at.getTime()>6*3600000){t.row.attempted_at=new Date();return {rows:[{feed:'remotive'}]}}
+   return {rows:[]};
+  }
+  if(sql.includes('SET payload')){t.row!.payload=JSON.parse(args[1]);t.row!.fetched_at=new Date();t.row!.last_error=null;return {rows:[]}}
+  if(sql.includes('SET last_error')){t.row!.last_error=args[1];return {rows:[]}}
+  throw Error('unexpected query '+sql);
+ }};
+ return {db,t};
+}
+const feedJson={jobs:[{id:9,url:'https://remotive.com/remote-jobs/x/9',title:'Staff Platform Engineer',company_name:'Gamma',candidate_required_location:'USA'}]};
+
+test('Remotive is fetched at most once per six hours and served from the shared cache in between',async()=>{
+ const {db,t}=fakeFeedDb();let calls=0;
+ const fetchJson=async(url:string)=>{calls++;assert.equal(url,'https://remotive.com/api/remote-jobs');return feedJson};
+ assert.equal((await remotivePostings(db,fetchJson)).postings.length,1);
+ for(let i=0;i<5;i++)await remotivePostings(db,fetchJson);
+ assert.equal(calls,1,'fresh cache: no further requests');
+ t.row!.fetched_at=new Date(Date.now()-13*3600000);
+ assert.equal((await remotivePostings(db,fetchJson)).postings.length,1,'stale but recently attempted: serve cache');
+ assert.equal(calls,1);
+ t.row!.attempted_at=new Date(Date.now()-7*3600000);
+ await remotivePostings(db,fetchJson);
+ assert.equal(calls,2,'stale and slot free: one refresh');
+});
+
+test('a failed Remotive refresh is not retried for six hours and is reported without data',async()=>{
+ const {db}=fakeFeedDb();let calls=0;
+ const failing=async()=>{calls++;throw Error('503')};
+ const first=await remotivePostings(db,failing);
+ assert.equal(first.postings.length,0);assert.match(first.error!,/unavailable/);
+ await remotivePostings(db,failing);await remotivePostings(db,failing);
+ assert.equal(calls,1);
 });
