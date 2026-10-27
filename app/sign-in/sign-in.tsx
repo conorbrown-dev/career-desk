@@ -1,8 +1,12 @@
 'use client';
 import {useState} from 'react';
+import {useSearchParams} from 'next/navigation';
 import {authClient} from '@/lib/auth-client';
 export default function SignIn({ready,allowSignup,emailEnabled}:{ready:boolean;allowSignup:boolean;emailEnabled:boolean}){
- const [signup,setSignup]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[sent,setSent]=useState(false);
+ const params=useSearchParams(),signup=allowSignup&&params?.get('mode')==='create';
+ // Create-account mode lives in the URL (/sign-in?mode=create), so Back returns to sign in and the link can be shared.
+ const setSignup=(next:boolean)=>{if(next!==signup)window.history.pushState(null,'',next?'/sign-in?mode=create':'/sign-in')};
+ const [error,setError]=useState(''),[busy,setBusy]=useState(false),[sent,setSent]=useState(false);
  return <main className="auth-page"><a className="brand" href="/">◎ careerdesk</a><section className="panel auth-card"><span className="eyebrow">YOUR PRIVATE WORKSPACE</span><h1>{ready?sent?'Check your email.':signup?'Make your next move.':'Welcome back.':'The pilot is being connected.'}</h1>{!ready?<><p>Career Desk is not accepting account data until its database and authentication are configured. You can explore the fictional demo in the meantime.</p><a className="primary" href="/demo">Explore the demo</a></>:sent?<><p>If registration is available for this address, a verification link is on its way. Check your inbox and spam folder, verify your email, then sign in.</p><a href="/verify-email">Request another verification email</a><button className="text-button" onClick={()=>{setSent(false);setSignup(false)}}>Return to sign in</button></>:<form onSubmit={async e=>{
  e.preventDefault();setBusy(true);setError('');const f=new FormData(e.currentTarget);const payload={email:String(f.get('email')),password:String(f.get('password')),callbackURL:signup?'/sign-in':'/dashboard'};
  try{const r=signup?await authClient.signUp.email({...payload,name:String(f.get('name'))}):await authClient.signIn.email(payload);if(r.error)setError(r.error.code==='EMAIL_NOT_VERIFIED'?'Verify your email before signing in. You can request another verification link below.':r.error.message||'Unable to sign in');else if(signup&&emailEnabled)setSent(true);else if(r.data&&'url' in r.data&&typeof r.data.url==='string')location.href=r.data.url;else location.href='/dashboard';}catch{setError('Unable to connect. Please try again.')}finally{setBusy(false)}
