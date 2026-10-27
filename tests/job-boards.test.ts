@@ -161,7 +161,7 @@ test('a Remotive-only watchlist adds US-eligible matches, credits Remotive, and 
  const job=state.jobs[0];
  assert.equal(job.company,'Acme');assert.equal(job.source,'Remotive · remote job feed');assert.match(job.notes,/remotive\.com/);assert.match(job.notes,/\$200k/);
  assert.match(job.url,/^https:\/\/remotive\.com\//);
- assert.equal(state.watch.feedStatus.remotive.lastAdded,1);
+ assert.equal(state.watch.feedStatus?.remotive?.lastAdded,1);
  assert.deepEqual(state.watch.seen['feed:remotive'].sort(),['1','2']);
  assert.deepEqual(state.runs[0].sources,['https://remotive.com']);
  const off=await syncWatchlist(repo,'owner','manual',{remotive:async()=>({postings:[],error:'Remotive is unavailable right now; it will be tried again later.'})});
