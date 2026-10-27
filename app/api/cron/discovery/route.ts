@@ -13,7 +13,7 @@ export async function GET(r:Request){try{
  authorizeCron(r.headers.get('authorization'),process.env.CRON_SECRET);
  const started=Date.now(),repo=repository();
  const owners=(await getPool().query(`SELECT w.owner_id FROM career_watchlists w JOIN "user" u ON u.id=w.owner_id
-  WHERE jsonb_array_length(COALESCE(w.payload->'boards','[]'::jsonb))>0
+  WHERE (jsonb_array_length(COALESCE(w.payload->'boards','[]'::jsonb))>0 OR w.payload->'feeds'->>'remotive'='true')
   AND (w.payload->>'lastSyncAt' IS NULL OR (w.payload->>'lastSyncAt')::timestamptz<NOW()-INTERVAL '20 hours')
   ORDER BY w.payload->>'lastSyncAt' NULLS FIRST LIMIT 500`)).rows.map((row:any)=>row.owner_id as string);
  let checked=0,added=0,failed=0,deferred=0;
