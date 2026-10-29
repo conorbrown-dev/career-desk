@@ -44,7 +44,7 @@ export async function syncWatchlist(repo:Repository,owner:string,trigger:'manual
  const watch:Watchlist|null=await repo.watchlist(owner);
  if(!hasSources(watch))return {checked:0,open:0,matched:0,added:0,errors:[],summary:'No job sources are being watched yet.'};
  const profile=await repo.profile(owner),profileRemote=String(profile?.criteria?.remote||'');
- const criteria={roles:String(profile?.criteria?.roles||''),keywords:watch!.keywords||'',exclude:watch!.exclude||'',remoteOnly:!!watch!.remoteOnly};
+ const criteria={roles:String(profile?.criteria?.roles||''),keywords:watch!.keywords||'',exclude:watch!.exclude||'',places:watch!.places||'',remoteOnly:!!watch!.remoteOnly};
  const sources:Source[]=watch!.boards.map(b=>({key:boardKey(b),name:b.name,pageUrl:boardPageUrl(b),read:()=>readBoard(b,fetchJson),eligible:()=>true,job:(p:Posting,role:string,at:Date)=>discoveredJob(p,b,role,at)}));
  if(watch!.feeds?.remotive)sources.push({key:feedKey('remotive'),name:'Remotive',pageUrl:'https://remotive.com',feed:'remotive',
   read:async()=>{const r=await loadRemotive();if(r.error&&!r.postings.length)throw Error(r.error);return r.postings},

@@ -1,6 +1,7 @@
 // Company job board watchlist: pure parsing and matching shared by the browser and the server.
 // Network access and persistence live in board-sync.ts.
 import {z} from 'zod';
+import {locationMatches,parsePlaces} from './places';
 
 export const providers=['greenhouse','lever','ashby'] as const;
 export type Provider=typeof providers[number];
@@ -11,7 +12,7 @@ export const feeds=['remotive'] as const;
 export type Feed=typeof feeds[number];
 export type SourceStatus={lastCheckedAt?:string;lastOpen?:number;lastMatched?:number;lastAdded?:number;lastError?:string};
 export type Board={provider:Provider;slug:string;name:string;addedAt:string}&SourceStatus;
-export type Watchlist={boards:Board[];keywords:string;exclude:string;remoteOnly:boolean;feeds?:Partial<Record<Feed,boolean>>;feedStatus?:Partial<Record<Feed,SourceStatus>>;seen:Record<string,string[]>;lastSyncAt?:string;lastSyncSource?:'manual'|'scheduled';lastSyncSummary?:string};
+export type Watchlist={boards:Board[];keywords:string;exclude:string;remoteOnly:boolean;places?:string;feeds?:Partial<Record<Feed,boolean>>;feedStatus?:Partial<Record<Feed,SourceStatus>>;seen:Record<string,string[]>;lastSyncAt?:string;lastSyncSource?:'manual'|'scheduled';lastSyncSummary?:string};
 export type Posting={id:string;title:string;url:string;location:string;remote:boolean;company:string;salary?:string};
 export const feedKey=(feed:Feed)=>'feed:'+feed;
 export const hasSources=(w:Watchlist|null|undefined)=>!!w&&((w.boards?.length||0)>0||feeds.some(f=>w.feeds?.[f]));
@@ -85,12 +86,15 @@ export function phrases(text:string){
 }
 const phraseIn=(title:Set<string>,phrase:string)=>{const w=words(phrase);return w.length>0&&w.every(x=>title.has(x))};
 
-export type Criteria={roles:string;keywords:string;exclude:string;remoteOnly:boolean};
-/** A posting matches when its title contains every word of a target role or keyword phrase, and no excluded phrase. */
+export type Criteria={roles:string;keywords:string;exclude:string;remoteOnly:boolean;places?:string};
+/** A posting matches when its title contains every word of a target role or keyword phrase, and no excluded phrase.
+ *  With work locations set, on-site and hybrid roles must be in one of them; remote roles and roles that list no
+ *  location still pass, since the applicant can't be ruled out. */
 export function matchPosting(p:Posting,c:Criteria):string|null{
  const title=new Set(words(p.title));
  if(phrases(c.exclude).some(x=>phraseIn(title,x)))return null;
  if(c.remoteOnly&&!p.remote)return null;
+ if(!c.remoteOnly&&!p.remote&&p.location.trim()){const places=parsePlaces(c.places||'');if(places.length&&!locationMatches(p.location,places))return null;}
  return [...phrases(c.roles),...phrases(c.keywords)].find(x=>phraseIn(title,x))||null;
 }
 
@@ -112,12 +116,13 @@ export function remoteRegionAllowed(location:string,profileRemote:string){
 }
 
 export function emptyWatchlist(profile:any):Watchlist{
- return {boards:[],keywords:'',exclude:'',remoteOnly:/\bremote\b/i.test(String(profile?.criteria?.remote||'')),feeds:{remotive:false},seen:{}};
+ return {boards:[],keywords:'',exclude:'',places:'',remoteOnly:/\bremote\b/i.test(String(profile?.criteria?.remote||'')),feeds:{remotive:false},seen:{}};
 }
 export const watchlistSettingsSchema=z.object({
  boards:z.array(z.object({provider:z.enum(providers),slug:z.string().regex(slugPattern),name:z.string().trim().max(200).optional().default('')})).max(watchlistLimits.boards,`Watch up to ${watchlistLimits.boards} company boards`),
  keywords:z.string().max(2000).optional().default(''),
  exclude:z.string().max(2000).optional().default(''),
+ places:z.string().max(2000).optional().default(''),
  remoteOnly:z.boolean(),
  feeds:z.object({remotive:z.boolean()}).strict().optional()
 }).strict();
@@ -135,7 +140,7 @@ export function applySettings(current:Watchlist,input:unknown,now=new Date()):{n
  }
  // Feed history is kept while a feed is off, so turning it back on doesn't re-add roles already reviewed.
  const seen=Object.fromEntries(Object.entries(current.seen||{}).filter(([k])=>keys.has(k)||k.startsWith('feed:')));
- return {next:{...current,boards,keywords:s.keywords,exclude:s.exclude,remoteOnly:s.remoteOnly,feeds:{...current.feeds,...s.feeds},seen},added};
+ return {next:{...current,boards,keywords:s.keywords,exclude:s.exclude,places:s.places,remoteOnly:s.remoteOnly,feeds:{...current.feeds,...s.feeds},seen},added};
 }
 /** The watchlist as shown to the browser, without the seen-posting bookkeeping. */
 export function publicWatchlist(w:Watchlist|null){if(!w)return null;const {seen,...rest}=w;void seen;return rest}

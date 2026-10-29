@@ -208,3 +208,44 @@ test('a failed Remotive refresh is not retried for six hours and is reported wit
  await remotivePostings(db,failing);await remotivePostings(db,failing);
  assert.equal(calls,1);
 });
+
+import {parsePlaces,locationMatches} from '../lib/places';
+test('work locations: a state after a city stays with that city, states and shorthand are understood',()=>{
+ const p=(t:string)=>parsePlaces(t).map(x=>[x.city?.join(' ')||'',x.state||'']);
+ assert.deepEqual(p('Denver, CO; Texas'),[['denver','CO'],['','TX']]);
+ assert.deepEqual(p('Denver, CO, Austin, TX'),[['denver','CO'],['austin','TX']]);
+ assert.deepEqual(p('Colorado, Utah'),[['','CO'],['','UT']]);
+ assert.deepEqual(p('CO, UT'),[['','CO'],['','UT']]);
+ assert.deepEqual(p('New York, NY or Washington, DC'),[['new york','NY'],['washington','DC']]);
+ assert.deepEqual(p('Austin TX; NYC; Raleigh'),[['austin','TX'],['new york',''],['raleigh','']]);
+});
+test('work locations match city, state and multi-office postings without crossing state lines',()=>{
+ const m=(loc:string,places:string)=>locationMatches(loc,parsePlaces(places));
+ assert.equal(m('Denver, CO','Colorado'),true);
+ assert.equal(m('Denver, Colorado, United States','CO'),true);
+ assert.equal(m('Austin, TX','Colorado'),false);
+ assert.equal(m('Portland, OR','Portland, ME'),false);
+ assert.equal(m('Portland, ME','Portland, ME'),true);
+ assert.equal(m('Portland','Portland, ME'),true);
+ assert.equal(m('San Francisco, CA / New York, NY','New York, NY'),true);
+ assert.equal(m('Washington, DC','Washington'),false);
+ assert.equal(m('Seattle, Washington','Washington'),true);
+ assert.equal(m('Seattle, WA','Washington, DC'),false);
+ assert.equal(m('Tulsa, OK','Oklahoma'),true);
+ assert.equal(m('Dublin, Ireland','Texas'),false);
+});
+test('the title filter applies work locations to on-site roles only',()=>{
+ const post=(location:string,remote:boolean)=>({id:location,title:'Software Engineer',url:'https://x.test/'+location,location,remote,company:'X'});
+ const c={roles:'Software Engineer',keywords:'',exclude:'',remoteOnly:false,places:'Denver, CO; Texas'};
+ assert.equal(matchPosting(post('Denver, CO',false),c),'Software Engineer');
+ assert.equal(matchPosting(post('Houston, Texas',false),c),'Software Engineer');
+ assert.equal(matchPosting(post('New York, NY',false),c),null);
+ assert.equal(matchPosting(post('Remote - US',true),c),'Software Engineer');
+ assert.equal(matchPosting(post('',false),c),'Software Engineer');
+ assert.equal(matchPosting(post('New York, NY',false),{...c,places:''}),'Software Engineer');
+});
+test('work locations are saved with the other watchlist settings',()=>{
+ const {next}=applySettings(emptyWatchlist({}),{boards:[],remoteOnly:false,places:'Denver, CO'});
+ assert.equal(next.places,'Denver, CO');
+ assert.equal(applySettings(emptyWatchlist({}),{boards:[],remoteOnly:false}).next.places,'');
+});

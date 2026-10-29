@@ -1,9 +1,9 @@
 // Browser helpers for saving the job source watchlist from the Overview and Search profile.
 import {boardKey,watchlistLimits,type Provider} from '@/lib/job-boards';
 
-export type Settings={boards:{provider:Provider;slug:string;name:string}[];keywords:string;exclude:string;remoteOnly:boolean;feeds:{remotive:boolean}};
+export type Settings={boards:{provider:Provider;slug:string;name:string}[];keywords:string;exclude:string;places:string;remoteOnly:boolean;feeds:{remotive:boolean}};
 export function settingsFrom(w:any):Settings{
- return {boards:(w?.boards||[]).map((b:any)=>({provider:b.provider,slug:b.slug,name:b.name})),keywords:w?.keywords||'',exclude:w?.exclude||'',remoteOnly:!!w?.remoteOnly,feeds:{remotive:!!w?.feeds?.remotive}};
+ return {boards:(w?.boards||[]).map((b:any)=>({provider:b.provider,slug:b.slug,name:b.name})),keywords:w?.keywords||'',exclude:w?.exclude||'',places:w?.places||'',remoteOnly:!!w?.remoteOnly,feeds:{remotive:!!w?.feeds?.remotive}};
 }
 /** Adds companies that aren't already watched, up to the board limit; returns how many fit. */
 export function withCompanies(s:Settings,companies:{provider:Provider;slug:string;name:string}[]){
