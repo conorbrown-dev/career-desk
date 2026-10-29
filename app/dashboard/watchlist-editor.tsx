@@ -23,7 +23,7 @@ function CompanyRow({c,watching,busy,onAdd}:{c:CatalogCompany;watching:boolean;b
 export default function WatchlistEditor({watchlist,profile,demo,notify,reload}:{watchlist:any;profile:any;demo:boolean;notify:(m:string)=>void;reload:()=>Promise<void>}){
  const roles=String(profile?.criteria?.roles||'');
  const [boards,setBoards]=useState<EditableBoard[]>(watchlist?.boards||[]);
- const [keywords,setKeywords]=useState<string>(watchlist?.keywords||''),[exclude,setExclude]=useState<string>(watchlist?.exclude||'');
+ const [keywords,setKeywords]=useState<string>(watchlist?.keywords||''),[exclude,setExclude]=useState<string>(watchlist?.exclude||''),[places,setPlaces]=useState<string>(watchlist?.places||'');
  const [remoteOnly,setRemoteOnly]=useState<boolean>(!!watchlist?.remoteOnly);
  const [remotive,setRemotive]=useState<boolean>(!!watchlist?.feeds?.remotive);
  const [link,setLink]=useState(''),[name,setName]=useState(''),[linkError,setLinkError]=useState('');
@@ -32,7 +32,7 @@ export default function WatchlistEditor({watchlist,profile,demo,notify,reload}:{
  const watched=new Set(boards.map(boardKey));
  const suggested=suggestCompanies(profile,boards,8);
  const remotiveStatus:SourceStatus|undefined=watchlist?.feedStatus?.remotive;
- const settings=(over:Partial<Settings>={}):Settings=>({boards:boards.map(({provider,slug,name})=>({provider,slug,name})),keywords,exclude,remoteOnly,feeds:{remotive},...over});
+ const settings=(over:Partial<Settings>={}):Settings=>({boards:boards.map(({provider,slug,name})=>({provider,slug,name})),keywords,exclude,places,remoteOnly,feeds:{remotive},...over});
  async function persist(next:Settings,skipUnreadable:boolean,message:(d:any)=>string){
   if(demo){notify('Job sources are available in a connected account.');return}
   setBusy(true);
@@ -107,6 +107,8 @@ export default function WatchlistEditor({watchlist,profile,demo,notify,reload}:{
    <label>Skip titles containing <span className="optional">(comma-separated)</span><input value={exclude} onChange={e=>edit(setExclude)(e.target.value)} placeholder="e.g. intern, manager, contract" maxLength={2000}/></label>
    <p className="filter-hint">A title matches when it contains every word of one target role or keyword, so “Staff Backend Engineer” won’t catch “Senior Backend Engineer”. Add each variant you want.</p>
    <label className="check"><input type="checkbox" checked={remoteOnly} onChange={e=>edit(setRemoteOnly)(e.target.checked)}/>Only add company roles the board lists as remote</label>
+   {!remoteOnly&&<label>Where you can work on-site or hybrid <span className="optional">(cities or states; leave blank for anywhere)</span><input value={places} onChange={e=>edit(setPlaces)(e.target.value)} placeholder="e.g. Denver, CO; Boulder, CO; Texas" maxLength={2000}/></label>}
+   {!remoteOnly&&<p className="filter-hint">Remote roles are always included. On-site and hybrid roles are added only when the posting lists one of these places. Separate places with semicolons; a state on its own covers every city in it.</p>}
   </div>
   <div className="watchlist-actions">
    <button className="secondary" type="button" disabled={busy||dirty||(!boards.length&&!remotive)} onClick={check} title={dirty?'Save your changes first':undefined}><RefreshCw size={15}/>Check now</button>
