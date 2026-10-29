@@ -14,3 +14,7 @@ test('automation cannot claim submission or overwrite applicant-managed stages',
  assert.throws(()=>checkAutomationJob({stage:'Ready for review',documents:[{kind:'Resume'},{kind:'Cover letter'}]},null),/Save the resume/);
  assert.doesNotThrow(()=>checkAutomationJob({stage:'Ready for review'},{stage:'Preparing',documents:[{kind:'Resume'},{kind:'Cover letter'}]}));
 });
+test('automation cannot mark a posting Not pursuing or revive one the applicant passed on',()=>{
+ assert.throws(()=>checkAutomationJob({stage:'Not pursuing'},null),/human review/);
+ assert.throws(()=>checkAutomationJob({stage:'Discovered'},{stage:'Not pursuing'}),/applicant/);
+});
